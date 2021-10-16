@@ -1,0 +1,89 @@
+name:                notes-lsp
+version:             0.1.0.0
+github:              "githubuser/haskell-lsp-hello"
+license:             BSD3
+author:              "Author name here"
+maintainer:          "example@example.com"
+copyright:           "2021 Author name here"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/haskell-lsp-hello#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- unordered-containers
+- containers
+- text
+- lsp
+- lsp-types
+- aeson
+- stm
+- microlens-platform
+- hslogger
+  
+default-extensions:
+  - FlexibleInstances
+  - FlexibleContexts
+  - InstanceSigs
+  - MultiParamTypeClasses
+  - ConstraintKinds
+  - LambdaCase
+  - EmptyCase
+  - TupleSections
+  - BangPatterns
+  - TypeApplications
+  - StandaloneDeriving
+  - OverloadedStrings
+  - RankNTypes
+  - ScopedTypeVariables
+  - NamedFieldPuns
+  - DuplicateRecordFields
+  - GeneralizedNewtypeDeriving
+  - DataKinds
+  - ConstraintKinds
+  - TypeApplications
+  - KindSignatures
+  - StandaloneKindSignatures
+  - DeriveFoldable
+  - DeriveFunctor
+  - DeriveGeneric
+  - DeriveLift
+  - DeriveTraversable 
+  - GeneralizedNewtypeDeriving
+  - GADTs
+
+library:
+  source-dirs: src
+
+executables:
+  notes-lsp:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - notes-lsp
+
+tests:
+  notes-lsp-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - hspec
+    - notes-lsp
