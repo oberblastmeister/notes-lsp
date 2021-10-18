@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- mtl
 - unordered-containers
 - containers
 - text
@@ -30,6 +31,12 @@ dependencies:
 - stm
 - microlens-platform
 - hslogger
+- commonmark
+- commonmark-pandoc
+- commonmark-extensions
+- pandoc-types
+- extra
+- pretty-simple
   
 default-extensions:
   - FlexibleInstances

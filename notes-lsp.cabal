@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Markdown.Tree
   other-modules:
       Paths_notes_lsp
   hs-source-dirs:
@@ -63,11 +64,18 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
+    , commonmark
+    , commonmark-extensions
+    , commonmark-pandoc
     , containers
+    , extra
     , hslogger
     , lsp
     , lsp-types
     , microlens-platform
+    , mtl
+    , pandoc-types
+    , pretty-simple
     , stm
     , text
     , unordered-containers
@@ -114,12 +122,19 @@ executable notes-lsp
   build-depends:
       aeson
     , base >=4.7 && <5
+    , commonmark
+    , commonmark-extensions
+    , commonmark-pandoc
     , containers
+    , extra
     , hslogger
     , lsp
     , lsp-types
     , microlens-platform
+    , mtl
     , notes-lsp
+    , pandoc-types
+    , pretty-simple
     , stm
     , text
     , unordered-containers
@@ -166,13 +181,20 @@ test-suite notes-lsp-test
   build-depends:
       aeson
     , base >=4.7 && <5
+    , commonmark
+    , commonmark-extensions
+    , commonmark-pandoc
     , containers
+    , extra
     , hslogger
     , hspec
     , lsp
     , lsp-types
     , microlens-platform
+    , mtl
     , notes-lsp
+    , pandoc-types
+    , pretty-simple
     , stm
     , text
     , unordered-containers

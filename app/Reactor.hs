@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveAnyClass #-}
-
 -- |
 -- This is an example language server built with haskell-lsp using a 'Reactor'
 -- design. With a 'Reactor' all requests are handled on a /single thread/.
@@ -20,7 +18,7 @@ import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.STM
-import qualified Data.Aeson as J
+import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -42,7 +40,11 @@ main = do
 -- ---------------------------------------------------------------------
 
 data Config = Config {fooTheBar :: Bool, wibbleFactor :: Int}
-  deriving (Generic, J.ToJSON, J.FromJSON, Show)
+  deriving (Generic, Show)
+
+instance Aeson.ToJSON Config
+
+instance Aeson.FromJSON Config
 
 run :: IO Int
 run = flip E.catches handlers $ do
@@ -52,9 +54,9 @@ run = flip E.catches handlers $ do
         ServerDefinition
           { defaultConfig = Config {fooTheBar = False, wibbleFactor = 0},
             onConfigurationChange = \_old v -> do
-              case J.fromJSON v of
-                J.Error e -> Left (T.pack e)
-                J.Success cfg -> Right cfg,
+              case Aeson.fromJSON v of
+                Aeson.Error e -> Left (T.pack e)
+                Aeson.Success cfg -> Right cfg,
             doInitialize = \env _ -> forkIO (reactor rin) >> pure (Right env),
             staticHandlers = lspHandlers rin,
             interpretHandler = \env -> Iso (runLspT env) liftIO,
@@ -245,8 +247,8 @@ handle =
                 -- need 'file' and 'start_pos'
                 args =
                   J.List
-                    [ J.Object $ H.fromList [("file", J.Object $ H.fromList [("textDocument", J.toJSON doc)])],
-                      J.Object $ H.fromList [("start_pos", J.Object $ H.fromList [("position", J.toJSON start)])]
+                    [ Aeson.Object $ H.fromList [("file", Aeson.Object $ H.fromList [("textDocument", Aeson.toJSON doc)])],
+                      Aeson.Object $ H.fromList [("start_pos", Aeson.Object $ H.fromList [("position", Aeson.toJSON start)])]
                     ]
                 cmdparams = Just args
             makeCommand (J.Diagnostic _r _s _c _source _m _t _l) = []
@@ -258,7 +260,7 @@ handle =
             margs = params ^. J.arguments
 
         liftIO $ debugM "reactor.handle" $ "The arguments are: " ++ show margs
-        responder (Right (J.Object mempty)) -- respond to the request
+        responder (Right (Aeson.Object mempty)) -- respond to the request
         void $
           withProgress "Executing some long running command" Cancellable $ \update ->
             forM [(0 :: Double) .. 10] $ \i -> do
