@@ -22,11 +22,12 @@ import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
 import qualified Data.Text as T
 import GHC.Generics (Generic)
-import Language.LSP.Diagnostics
-import Language.LSP.Server
-import qualified Language.LSP.Types as J
-import qualified Language.LSP.Types.Lens as J
-import Language.LSP.VFS
+import qualified Language.LSP.Diagnostics as Diagnostics
+import Language.LSP.Server (LspM)
+import qualified Language.LSP.Server as Server
+import qualified Language.LSP.Types as LSP
+import qualified Language.LSP.Types.Lens as LSP
+import qualified Language.LSP.VFS as VFS
 import Lens.Micro.Platform
 import System.Exit
 import System.Log.Logger
@@ -51,7 +52,7 @@ run = flip E.catches handlers $ do
   rin <- atomically $ newTChan @ReactorInput
 
   let serverDefinition =
-        ServerDefinition
+        Server.ServerDefinition
           { defaultConfig = Config {fooTheBar = False, wibbleFactor = 0},
             onConfigurationChange = \_old v -> do
               case Aeson.fromJSON v of
@@ -59,13 +60,13 @@ run = flip E.catches handlers $ do
                 Aeson.Success cfg -> Right cfg,
             doInitialize = \env _ -> forkIO (reactor rin) >> pure (Right env),
             staticHandlers = lspHandlers rin,
-            interpretHandler = \env -> Iso (runLspT env) liftIO,
+            interpretHandler = \env -> Server.Iso (Server.runLspT env) liftIO,
             options = lspOptions
           }
 
   flip E.finally finalProc $ do
-    setupLogger Nothing ["reactor"] DEBUG
-    runServer serverDefinition
+    Server.setupLogger Nothing ["reactor"] DEBUG
+    Server.runServer serverDefinition
   where
     handlers =
       [ E.Handler ioExcept,
@@ -77,21 +78,21 @@ run = flip E.catches handlers $ do
 
 -- ---------------------------------------------------------------------
 
-syncOptions :: J.TextDocumentSyncOptions
+syncOptions :: LSP.TextDocumentSyncOptions
 syncOptions =
-  J.TextDocumentSyncOptions
-    { J._openClose = Just True,
-      J._change = Just J.TdSyncIncremental,
-      J._willSave = Just False,
-      J._willSaveWaitUntil = Just False,
-      J._save = Just $ J.InR $ J.SaveOptions $ Just False
+  LSP.TextDocumentSyncOptions
+    { LSP._openClose = Just True,
+      LSP._change = Just LSP.TdSyncIncremental,
+      LSP._willSave = Just False,
+      LSP._willSaveWaitUntil = Just False,
+      LSP._save = Just $ LSP.InR $ LSP.SaveOptions $ Just False
     }
 
-lspOptions :: Options
+lspOptions :: Server.Options
 lspOptions =
-  defaultOptions
-    { textDocumentSync = Just syncOptions,
-      executeCommandCommands = Just ["lsp-hello-command"]
+  Server.defaultOptions
+    { Server.textDocumentSync = Just syncOptions,
+      Server.executeCommandCommands = Just ["lsp-hello-command"]
     }
 
 -- ---------------------------------------------------------------------
@@ -105,19 +106,19 @@ newtype ReactorInput
 
 -- | Analyze the file and send any diagnostics to the client in a
 -- "textDocument/publishDiagnostics" notification
-sendDiagnostics :: J.NormalizedUri -> Maybe Int -> LspM Config ()
+sendDiagnostics :: LSP.NormalizedUri -> Maybe Int -> LspM Config ()
 sendDiagnostics fileUri version = do
   let diags =
-        [ J.Diagnostic
-            (J.Range (J.Position 0 1) (J.Position 0 5))
-            (Just J.DsWarning) -- severity
+        [ LSP.Diagnostic
+            (LSP.Range (LSP.Position 0 1) (LSP.Position 0 5))
+            (Just LSP.DsWarning) -- severity
             Nothing -- code
             (Just "lsp-hello") -- source
             "Example diagnostic message"
             Nothing -- tags
-            (Just (J.List []))
+            (Just (LSP.List []))
         ]
-  publishDiagnostics 100 fileUri version (partitionBySource diags)
+  Server.publishDiagnostics 100 fileUri version (Diagnostics.partitionBySource diags)
 
 -- ---------------------------------------------------------------------
 
@@ -133,137 +134,137 @@ reactor inp = do
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as
 -- input into the reactor
-lspHandlers :: TChan ReactorInput -> Handlers (LspM Config)
-lspHandlers rin = mapHandlers goReq goNot handle
+lspHandlers :: TChan ReactorInput -> Server.Handlers (LspM Config)
+lspHandlers rin = Server.mapHandlers goReq goNot handle
   where
-    goReq :: forall (a :: J.Method J.FromClient J.Request). Handler (LspM Config) a -> Handler (LspM Config) a
+    goReq :: forall (a :: LSP.Method 'LSP.FromClient 'LSP.Request). Server.Handler (LspM Config) a -> Server.Handler (LspM Config) a
     goReq f = \msg k -> do
-      env <- getLspEnv
-      liftIO $ atomically $ writeTChan rin $ ReactorAction (runLspT env $ f msg k)
+      env <- Server.getLspEnv
+      liftIO $ atomically $ writeTChan rin $ ReactorAction (Server.runLspT env $ f msg k)
 
-    goNot :: forall (a :: J.Method J.FromClient J.Notification). Handler (LspM Config) a -> Handler (LspM Config) a
+    goNot :: forall (a :: LSP.Method 'LSP.FromClient 'LSP.Notification). Server.Handler (LspM Config) a -> Server.Handler (LspM Config) a
     goNot f = \msg -> do
-      env <- getLspEnv
-      liftIO $ atomically $ writeTChan rin $ ReactorAction (runLspT env $ f msg)
+      env <- Server.getLspEnv
+      liftIO $ atomically $ writeTChan rin $ ReactorAction (Server.runLspT env $ f msg)
 
 -- | Where the actual logic resides for handling requests and notifications.
-handle :: Handlers (LspM Config)
+handle :: Server.Handlers (LspM Config)
 handle =
   mconcat
-    [ notificationHandler J.SInitialized $ \_msg -> do
+    [ Server.notificationHandler LSP.SInitialized $ \_msg -> do
         liftIO $ debugM "reactor.handle" "Processing the Initialized notification"
 
         -- We're initialized! Lets send a showMessageRequest now
         let params =
-              J.ShowMessageRequestParams
-                J.MtWarning
+              LSP.ShowMessageRequestParams
+                LSP.MtWarning
                 "What's your favourite language extension?"
-                (Just [J.MessageActionItem "Rank2Types", J.MessageActionItem "NPlusKPatterns"])
+                (Just [LSP.MessageActionItem "Rank2Types", LSP.MessageActionItem "NPlusKPatterns"])
 
         void $
-          sendRequest J.SWindowShowMessageRequest params $ \case
+          Server.sendRequest LSP.SWindowShowMessageRequest params $ \case
             Left e -> liftIO $ errorM "reactor.handle" $ "Got an error: " ++ show e
             Right _ -> do
-              sendNotification J.SWindowShowMessage (J.ShowMessageParams J.MtInfo "Excellent choice")
+              Server.sendNotification LSP.SWindowShowMessage (LSP.ShowMessageParams LSP.MtInfo "Excellent choice")
 
               -- We can dynamically register a capability once the user accepts it
-              sendNotification J.SWindowShowMessage (J.ShowMessageParams J.MtInfo "Turning on code lenses dynamically")
+              Server.sendNotification LSP.SWindowShowMessage (LSP.ShowMessageParams LSP.MtInfo "Turning on code lenses dynamically")
 
-              let regOpts = J.CodeLensRegistrationOptions Nothing Nothing (Just False)
+              let regOpts = LSP.CodeLensRegistrationOptions Nothing Nothing (Just False)
 
               void $
-                registerCapability J.STextDocumentCodeLens regOpts $ \_req responder -> do
+                Server.registerCapability LSP.STextDocumentCodeLens regOpts $ \_req responder -> do
                   liftIO $ debugM "reactor.handle" "Processing a textDocument/codeLens request"
-                  let cmd = J.Command "Say hello" "lsp-hello-command" Nothing
-                      rsp = J.List [J.CodeLens (J.mkRange 0 0 0 100) (Just cmd) Nothing]
+                  let cmd = LSP.Command "Say hello" "lsp-hello-command" Nothing
+                      rsp = LSP.List [LSP.CodeLens (LSP.mkRange 0 0 0 100) (Just cmd) Nothing]
                   responder (Right rsp),
-      notificationHandler J.STextDocumentDidOpen $ \msg -> do
-        let doc = msg ^. J.params . J.textDocument . J.uri
-            fileName = J.uriToFilePath doc
+      Server.notificationHandler LSP.STextDocumentDidOpen $ \msg -> do
+        let doc = msg ^. LSP.params . LSP.textDocument . LSP.uri
+            fileName = LSP.uriToFilePath doc
         liftIO $ debugM "reactor.handle" $ "Processing DidOpenTextDocument for: " ++ show fileName
-        sendDiagnostics (J.toNormalizedUri doc) (Just 0),
-      notificationHandler J.SWorkspaceDidChangeConfiguration $ \msg -> do
-        cfg <- getConfig
+        sendDiagnostics (LSP.toNormalizedUri doc) (Just 0),
+      Server.notificationHandler LSP.SWorkspaceDidChangeConfiguration $ \msg -> do
+        cfg <- Server.getConfig
         liftIO $ debugM "configuration changed: " (show (msg, cfg))
-        sendNotification J.SWindowShowMessage $
-          J.ShowMessageParams J.MtInfo $ "Wibble factor set to " <> T.pack (show (wibbleFactor cfg)),
-      notificationHandler J.STextDocumentDidChange $ \msg -> do
+        Server.sendNotification LSP.SWindowShowMessage $
+          LSP.ShowMessageParams LSP.MtInfo $ "Wibble factor set to " <> T.pack (show (wibbleFactor cfg)),
+      Server.notificationHandler LSP.STextDocumentDidChange $ \msg -> do
         let doc =
               msg
-                ^. J.params
-                  . J.textDocument
-                  . J.uri
-                  . to J.toNormalizedUri
+                ^. LSP.params
+                  . LSP.textDocument
+                  . LSP.uri
+                  . to LSP.toNormalizedUri
         liftIO $ debugM "reactor.handle" $ "Processing DidChangeTextDocument for: " ++ show doc
-        mdoc <- getVirtualFile doc
+        mdoc <- Server.getVirtualFile doc
         case mdoc of
-          Just (VirtualFile _version str _) -> do
+          Just (VFS.VirtualFile _version str _) -> do
             liftIO $ debugM "reactor.handle" $ "Found the virtual file: " ++ show str
           Nothing -> do
             liftIO $ debugM "reactor.handle" $ "Didn't find anything in the VFS for: " ++ show doc,
-      notificationHandler J.STextDocumentDidSave $ \msg -> do
-        let doc = msg ^. J.params . J.textDocument . J.uri
-            fileName = J.uriToFilePath doc
+      Server.notificationHandler LSP.STextDocumentDidSave $ \msg -> do
+        let doc = msg ^. LSP.params . LSP.textDocument . LSP.uri
+            fileName = LSP.uriToFilePath doc
         liftIO $ debugM "reactor.handle" $ "Processing DidSaveTextDocument  for: " ++ show fileName
-        sendDiagnostics (J.toNormalizedUri doc) Nothing,
-      requestHandler J.STextDocumentRename $ \req responder -> do
+        sendDiagnostics (LSP.toNormalizedUri doc) Nothing,
+      Server.requestHandler LSP.STextDocumentRename $ \req responder -> do
         liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
-        let params = req ^. J.params
-            J.Position l c = params ^. J.position
-            newName = params ^. J.newName
-        vdoc <- getVersionedTextDoc (params ^. J.textDocument)
+        let params = req ^. LSP.params
+            LSP.Position l c = params ^. LSP.position
+            newName = params ^. LSP.newName
+        vdoc <- Server.getVersionedTextDoc (params ^. LSP.textDocument)
         -- Replace some text at the position with what the user entered
-        let edit = J.InL $ J.TextEdit (J.mkRange l c l (c + T.length newName)) newName
-            tde = J.TextDocumentEdit vdoc (J.List [edit])
+        let edit = LSP.InL $ LSP.TextEdit (LSP.mkRange l c l (c + T.length newName)) newName
+            tde = LSP.TextDocumentEdit vdoc (LSP.List [edit])
             -- "documentChanges" field is preferred over "changes"
-            rsp = J.WorkspaceEdit Nothing (Just (J.List [J.InL tde])) Nothing
+            rsp = LSP.WorkspaceEdit Nothing (Just (LSP.List [LSP.InL tde])) Nothing
         responder (Right rsp),
-      requestHandler J.STextDocumentHover $ \req responder -> do
+      Server.requestHandler LSP.STextDocumentHover $ \req responder -> do
         liftIO $ debugM "reactor.handle" "Processing a textDocument/hover request"
-        let J.HoverParams _doc pos _workDone = req ^. J.params
-            J.Position _l _c' = pos
-            rsp = J.Hover ms (Just range)
-            ms = J.HoverContents $ J.markedUpContent "lsp-hello" "Your type info here!"
-            range = J.Range pos pos
+        let LSP.HoverParams _doc pos _workDone = req ^. LSP.params
+            LSP.Position _l _c' = pos
+            rsp = LSP.Hover ms (Just range)
+            ms = LSP.HoverContents $ LSP.markedUpContent "lsp-hello" "Your type info here!"
+            range = LSP.Range pos pos
         responder (Right $ Just rsp),
-      requestHandler J.STextDocumentDocumentSymbol $ \req responder -> do
+      Server.requestHandler LSP.STextDocumentDocumentSymbol $ \req responder -> do
         liftIO $ debugM "reactor.handle" "Processing a textDocument/documentSymbol request"
-        let J.DocumentSymbolParams _ _ doc = req ^. J.params
-            loc = J.Location (doc ^. J.uri) (J.Range (J.Position 0 0) (J.Position 0 0))
-            sym = J.SymbolInformation "lsp-hello" J.SkFunction Nothing Nothing loc Nothing
-            rsp = J.InR (J.List [sym])
+        let LSP.DocumentSymbolParams _ _ doc = req ^. LSP.params
+            loc = LSP.Location (doc ^. LSP.uri) (LSP.Range (LSP.Position 0 0) (LSP.Position 0 0))
+            sym = LSP.SymbolInformation "lsp-hello" LSP.SkFunction Nothing Nothing loc Nothing
+            rsp = LSP.InR (LSP.List [sym])
         responder (Right rsp),
-      requestHandler J.STextDocumentCodeAction $ \req responder -> do
-        liftIO $ debugM "reactor.handle" $ "Processing a textDocument/codeAction request"
-        let params = req ^. J.params
-            doc = params ^. J.textDocument
-            (J.List diags) = params ^. J.context . J.diagnostics
+      Server.requestHandler LSP.STextDocumentCodeAction $ \req responder -> do
+        liftIO $ debugM "reactor.handle" "Processing a textDocument/codeAction request"
+        let params = req ^. LSP.params
+            doc = params ^. LSP.textDocument
+            (LSP.List diags) = params ^. LSP.context . LSP.diagnostics
             -- makeCommand only generates commands for diagnostics whose source is us
-            makeCommand (J.Diagnostic (J.Range start _) _s _c (Just "lsp-hello") _m _t _l) = [J.Command title cmd cmdparams]
+            makeCommand (LSP.Diagnostic (LSP.Range start _) _s _c (Just "lsp-hello") _m _t _l) = [LSP.Command title cmd cmdparams]
               where
                 title = "Apply LSP hello command:" <> head (T.lines _m)
                 -- NOTE: the cmd needs to be registered via the InitializeResponse message. See lspOptions above
                 cmd = "lsp-hello-command"
                 -- need 'file' and 'start_pos'
                 args =
-                  J.List
+                  LSP.List
                     [ Aeson.Object $ H.fromList [("file", Aeson.Object $ H.fromList [("textDocument", Aeson.toJSON doc)])],
                       Aeson.Object $ H.fromList [("start_pos", Aeson.Object $ H.fromList [("position", Aeson.toJSON start)])]
                     ]
                 cmdparams = Just args
-            makeCommand (J.Diagnostic _r _s _c _source _m _t _l) = []
-            rsp = J.List $ map J.InL $ concatMap makeCommand diags
+            makeCommand (LSP.Diagnostic _r _s _c _source _m _t _l) = []
+            rsp = LSP.List $ map LSP.InL $ concatMap makeCommand diags
         responder (Right rsp),
-      requestHandler J.SWorkspaceExecuteCommand $ \req responder -> do
+      Server.requestHandler LSP.SWorkspaceExecuteCommand $ \req responder -> do
         liftIO $ debugM "reactor.handle" "Processing a workspace/executeCommand request"
-        let params = req ^. J.params
-            margs = params ^. J.arguments
+        let params = req ^. LSP.params
+            margs = params ^. LSP.arguments
 
         liftIO $ debugM "reactor.handle" $ "The arguments are: " ++ show margs
         responder (Right (Aeson.Object mempty)) -- respond to the request
         void $
-          withProgress "Executing some long running command" Cancellable $ \update ->
+          Server.withProgress "Executing some long running command" Server.Cancellable $ \update ->
             forM [(0 :: Double) .. 10] $ \i -> do
-              update (ProgressAmount (Just (i * 10)) (Just "Doing stuff"))
+              update (Server.ProgressAmount (Just (i * 10)) (Just "Doing stuff"))
               liftIO $ threadDelay (1 * 1000000)
     ]

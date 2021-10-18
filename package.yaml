@@ -69,6 +69,12 @@ default-extensions:
   - GeneralizedNewtypeDeriving
   - GADTs
 
+ghc-options:
+  - -Wall
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wredundant-constraints
+
 library:
   source-dirs: src
 
@@ -85,7 +91,7 @@ executables:
 
 tests:
   notes-lsp-test:
-    main:                Spec.hs
+    main:                Main.hs
     source-dirs:         test
     ghc-options:
     - -threaded

@@ -1,3 +1,5 @@
+module Spec where
+
 import qualified Commonmark
 import qualified Commonmark.Extensions
 import qualified Commonmark.Extensions.Wikilinks as Commonmark

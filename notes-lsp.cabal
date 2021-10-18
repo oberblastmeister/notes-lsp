@@ -61,6 +61,7 @@ library
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -118,7 +119,7 @@ executable notes-lsp
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -142,8 +143,9 @@ executable notes-lsp
 
 test-suite notes-lsp-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Main.hs
   other-modules:
+      Spec
       Paths_notes_lsp
   hs-source-dirs:
       test
@@ -177,7 +179,7 @@ test-suite notes-lsp-test
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
