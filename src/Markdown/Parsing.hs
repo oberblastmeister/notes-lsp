@@ -2,13 +2,16 @@ module Markdown.Parsing
   ( SyntaxSpec,
     SyntaxSpec',
     syntaxSpec,
+    parseMarkdown,
   )
 where
 
+import Commonmark (ParseError)
 import qualified Commonmark
 import qualified Commonmark.Extensions
 import qualified Commonmark.Pandoc
 import qualified Markdown.CST as CST
+import qualified Markdown.Links as Links
 import MyPrelude
 import qualified Text.Pandoc.Builder as Pandoc.Builder
 import qualified Text.Parsec as Parsec
@@ -35,14 +38,14 @@ type SyntaxSpec' m il bl =
     -- Commonmark.Extensions.HasDefinitionList il bl,
     Commonmark.Extensions.HasDiv bl,
     Commonmark.Extensions.HasQuoted il,
-    Commonmark.Extensions.HasSpan il
+    Commonmark.Extensions.HasSpan il,
+    Links.HasWikiLink il
   )
 
 syntaxSpec ::
   SyntaxSpec' m il bl =>
   Commonmark.SyntaxSpec m il bl
 syntaxSpec =
-  -- TODO: Move the bulk of markdown extensions to a neuron extension
   mconcat
     [ Commonmark.Extensions.fancyListSpec,
       Commonmark.Extensions.footnoteSpec,
@@ -57,12 +60,19 @@ syntaxSpec =
       Commonmark.defaultSyntaxSpec,
       -- as the commonmark documentation states, pipeTableSpec should be placed after
       -- fancyListSpec and defaultSyntaxSpec to avoid bad results when non-table lines
-      Commonmark.Extensions.pipeTableSpec
+      Commonmark.Extensions.pipeTableSpec,
+      Links.wikiLinkSpec
     ]
 
-parseMarkdown :: FilePath -> Text -> ()
+parseMarkdown :: FilePath -> Text -> Either ParseError [CST.Block]
 parseMarkdown path input = do
-  let _ = case join $ Commonmark.commonmarkWith @_ @CST.Inlines @CST.Blocks syntaxSpec path input of
-        Left pe -> undefined
-        Right it -> it
-  undefined
+  toList
+    <$> runIdentity
+      ( Commonmark.commonmarkWith
+          @Identity
+          @CST.Inlines
+          @CST.Blocks
+          syntaxSpec
+          path
+          input
+      )

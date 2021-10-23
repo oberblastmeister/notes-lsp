@@ -27,6 +27,7 @@ library
   exposed-modules:
       Config
       Markdown.AST
+      Markdown.Collect
       Markdown.Connection
       Markdown.CST
       Markdown.Links

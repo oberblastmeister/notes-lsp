@@ -1,18 +1,23 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 module Markdown.Links where
 
 import qualified Commonmark
 import qualified Commonmark.Inlines
 import Commonmark.TokParsers (noneOfToks, symbol)
+import Data.List.Split (wordsBy)
 import qualified Data.Text as T
 import Markdown.Connection (Connection)
+import qualified Markdown.Connection as Connection
 import MyPrelude
 import qualified Text.Megaparsec as M
 import qualified Text.Parsec as P
-import qualified Markdown.Connection as Connection
-import Data.List.Split (wordsBy)
+
+class HasWikiLink a where
+  wikilink :: Connection -> (Text, Maybe Text) -> a
 
 wikiLinkSpec ::
-  (Monad m, Commonmark.IsBlock il bl, Commonmark.IsInline il) =>
+  (Monad m, Commonmark.IsBlock il bl, Commonmark.IsInline il, HasWikiLink il) =>
   Commonmark.SyntaxSpec m il bl
 wikiLinkSpec =
   mempty
@@ -20,18 +25,19 @@ wikiLinkSpec =
     }
   where
     pLink ::
-      (Monad m, Commonmark.IsInline il) =>
+      (Monad m, Commonmark.IsInline il, HasWikiLink il) =>
       Commonmark.Inlines.InlineParser m il
     pLink =
       P.try $
         P.choice
           [ -- Folgezettel links
-            cmAutoLink Connection.Folgezettel <$> P.try (wikiLinkP 3),
-            cmAutoLink Connection.FolgezettelInverse <$> P.try (symbol '#' *> wikiLinkP 2),
-            cmAutoLink Connection.Folgezettel <$> P.try (wikiLinkP 2 <* symbol '#'),
+            wikilink Connection.Folgezettel <$> P.try (wikiLinkP 3),
+            wikilink Connection.FolgezettelInverse <$> P.try (symbol '#' *> wikiLinkP 2),
+            wikilink Connection.Folgezettel <$> P.try (wikiLinkP 2 <* symbol '#'),
             -- Cf link: [[...]]
-            cmAutoLink Connection.OrdinaryConnection <$> P.try (wikiLinkP 2)
+            wikilink Connection.OrdinaryConnection <$> P.try (wikiLinkP 2)
           ]
+
     wikiLinkP :: Monad m => Int -> P.ParsecT [Commonmark.Tok] s m (Text, Maybe Text)
     wikiLinkP n = do
       void $ M.count n $ symbol '['
@@ -43,10 +49,3 @@ wikiLinkSpec =
         [url, name] -> pure (url, Just name)
         [] -> fail "Empty wiki-link encountered"
         _ -> fail ("Multiple pipe ('|') characters encountered; here are the parts: " ++ T.unpack (T.intercalate ", " parts))
-    cmAutoLink :: Commonmark.IsInline a => Connection -> (Text, Maybe Text) -> a
-    cmAutoLink conn (url, name) =
-      Commonmark.link url title $ Commonmark.str (url `fromMaybe` name)
-      where
-        -- Store connetion type in 'title' attribute
-        -- TODO: Put it in attrs instead; requires PR to commonmark
-        title = show conn

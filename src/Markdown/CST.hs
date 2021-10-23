@@ -1,11 +1,12 @@
 module Markdown.CST where
 
 import qualified Commonmark
-import Control.Exception (assert)
+import qualified Commonmark.Extensions as Extensions
 import Control.Lens
 import qualified Data.Sequence as Seq
+import Markdown.Connection (Connection)
+import qualified Markdown.Links as Links
 import MyPrelude
-import qualified Commonmark.Extensions as Extensions
 
 singleton :: t -> Seq (t, Maybe a)
 singleton = Seq.singleton . (,Nothing)
@@ -48,6 +49,14 @@ data Block'
 
 -- instance Commonmark.IsBlock Inline Block where
 type Blocks = Seq Block
+
+instance Plated Block where
+  plate f (b', r) = (,r) <$> plateBlock' f b'
+
+plateBlock' :: Applicative f => (Block -> f Block) -> Block' -> f Block'
+plateBlock' f = \case
+  BlBlockHolder bs -> BlBlockHolder <$> traverse f bs
+  other -> pure other
 
 instance Commonmark.Rangeable Blocks where
   ranged r bs = bs & each %~ (`addRange` r)
@@ -98,11 +107,27 @@ type Inline = (Inline', Maybe Commonmark.SourceRange)
 data Inline'
   = IlNull
   | IlInlineHolder [Inline]
-  | Link [Inline] Text Text
+  | IlWikiLink WikiLink
   | Note [Block]
   deriving (Show, Eq, Generic)
 
+data WikiLink = WikiLink
+  { conn :: Connection,
+    url :: Text,
+    name :: Maybe Text
+  }
+  deriving (Show, Eq, Generic)
+
 type Inlines = Seq Inline
+
+instance Plated Inline where
+  plate f (i', r) = (,r) <$> plateInline' f i'
+
+plateInline' :: Applicative f => (Inline -> f Inline) -> Inline' -> f Inline'
+plateInline' f = \case
+  IlInlineHolder is -> IlInlineHolder <$> traverse f is
+  -- Link is t t' -> Link <$> traverse f is <*> pure t <*> pure t'
+  other -> pure other
 
 instance Commonmark.Rangeable Inlines where
   ranged r bs = bs & each %~ (`addRange` r)
@@ -122,7 +147,7 @@ instance Commonmark.IsInline Inlines where
 
   strong = ilInlineHolder
 
-  link dest title lDesc = singleton $ Link (toList lDesc) dest title
+  link _ _ = ilInlineHolder
 
   image _ _ = ilInlineHolder
 
@@ -140,7 +165,7 @@ instance Extensions.HasMath Inlines where
   inlineMath _ = ilNull
 
   displayMath _ = ilNull
-  
+
 instance Extensions.HasQuoted Inlines where
   singleQuoted = ilInlineHolder
 
@@ -148,9 +173,9 @@ instance Extensions.HasQuoted Inlines where
 
 instance Extensions.HasSpan Inlines where
   spanWith _ = ilInlineHolder
-  
+
 instance Commonmark.HasAttributes Inlines where
   addAttributes _ = ilInlineHolder
 
-instance Commonmark.Rangeable Inline where
-  ranged r (il, old) = let !_ = assert $ isNothing old in (il, Just r)
+instance Links.HasWikiLink Inlines where
+  wikilink conn (url, name) = singleton $ IlWikiLink $ WikiLink {conn, url, name}
