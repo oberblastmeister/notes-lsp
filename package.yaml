@@ -46,6 +46,10 @@ dependencies:
 - rope-utf16-splay
 - fgl
 - unliftio-core
+- exceptions
+- megaparsec
+- parsec
+- split
   
 default-extensions:
   - NoImplicitPrelude
@@ -87,6 +91,9 @@ ghc-options:
   - -Wincomplete-uni-patterns
   - -Wredundant-constraints
   - -Wno-unused-do-bind
+  # for stan to work
+  - -fwrite-ide-info
+  - -hiedir=.hie
 
 library:
   source-dirs: src

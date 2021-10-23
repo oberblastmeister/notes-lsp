@@ -18,8 +18,8 @@ data ASTElement'
 
 data Link = Link
   { inner :: [ASTElement],
-    name :: Text,
-    dest :: Text
+    name :: !Text,
+    dest :: !Text
   }
   deriving (Show, Eq, Generic)
 

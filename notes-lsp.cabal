@@ -27,7 +27,10 @@ library
   exposed-modules:
       Config
       Markdown.AST
+      Markdown.Connection
       Markdown.CST
+      Markdown.Links
+      Markdown.Parsing
       MyPrelude
       Reactor
       State
@@ -68,7 +71,7 @@ library
       GADTs
       PolyKinds
       OverloadedLabels
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -77,20 +80,24 @@ library
     , commonmark-pandoc
     , containers
     , dlist
+    , exceptions
     , fgl
     , generic-lens
     , hslogger
     , lens
     , lsp
     , lsp-types
+    , megaparsec
     , monad-par
     , mtl
     , pandoc-types
+    , parsec
     , path
     , path-io
     , pretty-simple
     , relude
     , rope-utf16-splay
+    , split
     , stm
     , text
     , transformers
@@ -137,7 +144,7 @@ executable notes-lsp
       GADTs
       PolyKinds
       OverloadedLabels
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -146,21 +153,25 @@ executable notes-lsp
     , commonmark-pandoc
     , containers
     , dlist
+    , exceptions
     , fgl
     , generic-lens
     , hslogger
     , lens
     , lsp
     , lsp-types
+    , megaparsec
     , monad-par
     , mtl
     , notes-lsp
     , pandoc-types
+    , parsec
     , path
     , path-io
     , pretty-simple
     , relude
     , rope-utf16-splay
+    , split
     , stm
     , text
     , transformers
@@ -209,7 +220,7 @@ test-suite notes-lsp-test
       GADTs
       PolyKinds
       OverloadedLabels
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -218,6 +229,7 @@ test-suite notes-lsp-test
     , commonmark-pandoc
     , containers
     , dlist
+    , exceptions
     , fgl
     , generic-lens
     , hslogger
@@ -225,15 +237,18 @@ test-suite notes-lsp-test
     , lens
     , lsp
     , lsp-types
+    , megaparsec
     , monad-par
     , mtl
     , notes-lsp
     , pandoc-types
+    , parsec
     , path
     , path-io
     , pretty-simple
     , relude
     , rope-utf16-splay
+    , split
     , stm
     , text
     , transformers

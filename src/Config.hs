@@ -14,7 +14,7 @@ type MonadLsp m = Server.MonadLsp Config m
 
 type LanguageContextEnv = Server.LanguageContextEnv Config
 
-data Config = Config {fooTheBar :: Bool, wibbleFactor :: Int}
+data Config = Config {fooTheBar :: !Bool, wibbleFactor :: !Int}
   deriving (Generic, Show)
 
 instance Aeson.ToJSON Config

@@ -1,5 +1,6 @@
 module Spec where
 
+import MyPrelude
 import qualified Commonmark
 import qualified Commonmark.Extensions
 import qualified Commonmark.Extensions.Wikilinks as Commonmark
@@ -7,10 +8,10 @@ import qualified Commonmark.Pandoc
 import Commonmark.Parser (commonmark)
 import Control.Monad (join)
 import Control.Monad.Identity (runIdentity)
-import Data.Either.Extra
 import Data.Text (Text)
 import Data.Typeable (Typeable)
 import Markdown.CST (Blocks)
+import MyPrelude
 import Text.Pandoc.Builder (Pandoc (Pandoc))
 import qualified Text.Pandoc.Builder as Pandoc.Builder
 import Text.Pretty.Simple
@@ -36,6 +37,8 @@ run = do
 parseTree :: IO ()
 parseTree = do
   let s = "# this is a title adpsofiuasdf\n\
+  \**emphatic**\n\
+  \*italics*\n\
   \"
   case Commonmark.commonmark "<none>" s of
     Left e -> error $ show e
@@ -60,15 +63,16 @@ parseMarkdown ::
   Pandoc
 parseMarkdown path markdown = do
   let v =
-        fromRight' $
-          commonmarkPandocWith
-            ( Commonmark.defaultSyntaxSpec
-                <> Commonmark.Extensions.wikilinksSpec Commonmark.Extensions.TitleAfterPipe
-                <> Commonmark.Extensions.pipeTableSpec
-                <> Commonmark.Extensions.mathSpec
-            )
-            path
-            markdown
+        case commonmarkPandocWith
+          ( Commonmark.defaultSyntaxSpec
+              <> Commonmark.Extensions.wikilinksSpec Commonmark.Extensions.TitleAfterPipe
+              <> Commonmark.Extensions.pipeTableSpec
+              <> Commonmark.Extensions.mathSpec
+          )
+          path
+          markdown of
+          Left e -> error $ show e
+          Right r -> r
   let doc = Pandoc mempty $ Pandoc.Builder.toList $ Commonmark.Pandoc.unCm v
   doc
 

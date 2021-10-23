@@ -335,6 +335,6 @@ requestHandler smethod fn = do
   Server.requestHandler smethod $ \msg k -> do
     st <- get
     env <- Server.getLspEnv
-    let k' = State.toServer' <$> k
+    let k' = State.toServer' . k
     let act = fn msg k'
     void $ liftIO $ Concurrent.forkIO $ State.runServer' st env act
