@@ -26,12 +26,14 @@ source-repository head
 library
   exposed-modules:
       Config
+      Handlers
       Markdown.AST
       Markdown.Collect
       Markdown.Connection
       Markdown.CST
       Markdown.Links
       Markdown.Parsing
+      Markdown.Tags
       MyPrelude
       Reactor
       State
@@ -66,12 +68,15 @@ library
       DeriveFoldable
       DeriveFunctor
       DeriveGeneric
+      DeriveDataTypeable
       DeriveLift
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
       PolyKinds
       OverloadedLabels
+      ViewPatterns
+      PatternSynonyms
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie
   build-depends:
       aeson
@@ -85,6 +90,7 @@ library
     , fgl
     , generic-lens
     , hslogger
+    , ixset-typed
     , lens
     , lsp
     , lsp-types
@@ -139,12 +145,15 @@ executable notes-lsp
       DeriveFoldable
       DeriveFunctor
       DeriveGeneric
+      DeriveDataTypeable
       DeriveLift
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
       PolyKinds
       OverloadedLabels
+      ViewPatterns
+      PatternSynonyms
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
@@ -158,6 +167,7 @@ executable notes-lsp
     , fgl
     , generic-lens
     , hslogger
+    , ixset-typed
     , lens
     , lsp
     , lsp-types
@@ -215,12 +225,15 @@ test-suite notes-lsp-test
       DeriveFoldable
       DeriveFunctor
       DeriveGeneric
+      DeriveDataTypeable
       DeriveLift
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
       PolyKinds
       OverloadedLabels
+      ViewPatterns
+      PatternSynonyms
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
@@ -235,6 +248,7 @@ test-suite notes-lsp-test
     , generic-lens
     , hslogger
     , hspec
+    , ixset-typed
     , lens
     , lsp
     , lsp-types

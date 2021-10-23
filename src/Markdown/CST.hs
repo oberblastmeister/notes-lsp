@@ -134,48 +134,67 @@ instance Commonmark.Rangeable Inlines where
 
 instance Commonmark.IsInline Inlines where
   lineBreak = ilNull
+  {-# INLINE lineBreak #-}
 
   softBreak = ilNull
+  {-# INLINE softBreak #-}
 
   str _ = ilNull
+  {-# INLINE str #-}
 
   entity _ = ilNull
+  {-# INLINE entity #-}
 
   escapedChar _ = ilNull
+  {-# INLINE escapedChar #-}
 
   emph = ilInlineHolder
+  {-# INLINE emph #-}
 
   strong = ilInlineHolder
+  {-# INLINE strong #-}
 
   link _ _ = ilInlineHolder
+  {-# INLINE link #-}
 
   image _ _ = ilInlineHolder
+  {-# INLINE image #-}
 
   code _ = ilNull
+  {-# INLINE code #-}
 
   rawInline _ _ = ilNull
+  {-# INLINE rawInline #-}
 
 instance Extensions.HasEmoji Inlines where
   emoji _ _ = ilNull
+  {-# INLINE emoji #-}
 
 instance Extensions.HasStrikethrough Inlines where
   strikethrough = ilInlineHolder
+  {-# INLINE strikethrough #-}
 
 instance Extensions.HasMath Inlines where
   inlineMath _ = ilNull
+  {-# INLINE inlineMath #-}
 
   displayMath _ = ilNull
+  {-# INLINE displayMath #-}
 
 instance Extensions.HasQuoted Inlines where
   singleQuoted = ilInlineHolder
+  {-# INLINE singleQuoted #-}
 
   doubleQuoted = ilInlineHolder
+  {-# INLINE doubleQuoted #-}
 
 instance Extensions.HasSpan Inlines where
   spanWith _ = ilInlineHolder
+  {-# INLINE spanWith #-}
 
 instance Commonmark.HasAttributes Inlines where
   addAttributes _ = ilInlineHolder
+  {-# INLINE addAttributes #-}
 
 instance Links.HasWikiLink Inlines where
   wikilink conn (url, name) = singleton $ IlWikiLink $ WikiLink {conn, url, name}
