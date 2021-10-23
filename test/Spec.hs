@@ -10,7 +10,7 @@ import Control.Monad.Identity (runIdentity)
 import Data.Either.Extra
 import Data.Text (Text)
 import Data.Typeable (Typeable)
-import Markdown.Tree (Blocks)
+import Markdown.CST (Blocks)
 import Text.Pandoc.Builder (Pandoc (Pandoc))
 import qualified Text.Pandoc.Builder as Pandoc.Builder
 import Text.Pretty.Simple
@@ -35,10 +35,7 @@ run = do
 
 parseTree :: IO ()
 parseTree = do
-  let s = "# this is a title\n\
-  \[adsfasdf](asdfasdf)\n\
-  \- first\n\
-  \- second\n\
+  let s = "# this is a title adpsofiuasdf\n\
   \"
   case Commonmark.commonmark "<none>" s of
     Left e -> error $ show e

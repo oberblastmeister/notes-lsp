@@ -21,24 +21,34 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- relude
+- transformers
 - mtl
 - unordered-containers
 - containers
+- dlist
 - text
 - lsp
 - lsp-types
 - aeson
 - stm
-- microlens-platform
+- monad-par
 - hslogger
 - commonmark
 - commonmark-pandoc
 - commonmark-extensions
 - pandoc-types
-- extra
 - pretty-simple
+- lens
+- generic-lens
+- path
+- path-io
+- rope-utf16-splay
+- fgl
+- unliftio-core
   
 default-extensions:
+  - NoImplicitPrelude
   - FlexibleInstances
   - FlexibleContexts
   - InstanceSigs
@@ -68,12 +78,15 @@ default-extensions:
   - DeriveTraversable 
   - GeneralizedNewtypeDeriving
   - GADTs
+  - PolyKinds
+  - OverloadedLabels
 
 ghc-options:
   - -Wall
   - -Wincomplete-record-updates
   - -Wincomplete-uni-patterns
   - -Wredundant-constraints
+  - -Wno-unused-do-bind
 
 library:
   source-dirs: src

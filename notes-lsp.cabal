@@ -25,13 +25,18 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
-      Markdown.Tree
+      Config
+      Markdown.AST
+      Markdown.CST
+      MyPrelude
+      Reactor
+      State
   other-modules:
       Paths_notes_lsp
   hs-source-dirs:
       src
   default-extensions:
+      NoImplicitPrelude
       FlexibleInstances
       FlexibleContexts
       InstanceSigs
@@ -61,7 +66,9 @@ library
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+      PolyKinds
+      OverloadedLabels
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -69,27 +76,36 @@ library
     , commonmark-extensions
     , commonmark-pandoc
     , containers
-    , extra
+    , dlist
+    , fgl
+    , generic-lens
     , hslogger
+    , lens
     , lsp
     , lsp-types
-    , microlens-platform
+    , monad-par
     , mtl
     , pandoc-types
+    , path
+    , path-io
     , pretty-simple
+    , relude
+    , rope-utf16-splay
     , stm
     , text
+    , transformers
+    , unliftio-core
     , unordered-containers
   default-language: Haskell2010
 
 executable notes-lsp
   main-is: Main.hs
   other-modules:
-      Reactor
       Paths_notes_lsp
   hs-source-dirs:
       app
   default-extensions:
+      NoImplicitPrelude
       FlexibleInstances
       FlexibleContexts
       InstanceSigs
@@ -119,7 +135,9 @@ executable notes-lsp
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+      PolyKinds
+      OverloadedLabels
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -127,17 +145,26 @@ executable notes-lsp
     , commonmark-extensions
     , commonmark-pandoc
     , containers
-    , extra
+    , dlist
+    , fgl
+    , generic-lens
     , hslogger
+    , lens
     , lsp
     , lsp-types
-    , microlens-platform
+    , monad-par
     , mtl
     , notes-lsp
     , pandoc-types
+    , path
+    , path-io
     , pretty-simple
+    , relude
+    , rope-utf16-splay
     , stm
     , text
+    , transformers
+    , unliftio-core
     , unordered-containers
   default-language: Haskell2010
 
@@ -150,6 +177,7 @@ test-suite notes-lsp-test
   hs-source-dirs:
       test
   default-extensions:
+      NoImplicitPrelude
       FlexibleInstances
       FlexibleContexts
       InstanceSigs
@@ -179,7 +207,9 @@ test-suite notes-lsp-test
       DeriveTraversable
       GeneralizedNewtypeDeriving
       GADTs
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+      PolyKinds
+      OverloadedLabels
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -187,17 +217,26 @@ test-suite notes-lsp-test
     , commonmark-extensions
     , commonmark-pandoc
     , containers
-    , extra
+    , dlist
+    , fgl
+    , generic-lens
     , hslogger
     , hspec
+    , lens
     , lsp
     , lsp-types
-    , microlens-platform
+    , monad-par
     , mtl
     , notes-lsp
     , pandoc-types
+    , path
+    , path-io
     , pretty-simple
+    , relude
+    , rope-utf16-splay
     , stm
     , text
+    , transformers
+    , unliftio-core
     , unordered-containers
   default-language: Haskell2010

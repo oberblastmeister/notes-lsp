@@ -1,13 +1,10 @@
-module Markdown.Tree where
+module Markdown.CST where
 
+import MyPrelude hiding (toList)
 import qualified Commonmark
 import Control.Exception (assert)
 import qualified Data.Foldable as Foldable
-import Data.Maybe (isNothing)
-import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Text (Text)
-import qualified Text.Pandoc.Builder as Pandoc
 
 toList :: Seq a -> [a]
 toList = Foldable.toList
@@ -29,8 +26,9 @@ type Block = (Block', Maybe Commonmark.SourceRange)
 data Block'
   = InlineHolder [Inline]
   | BlockHolder [Block]
+  | Heading [Inline]
   | BlNull
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 -- instance Commonmark.IsBlock Inline Block where
 type Blocks = Seq Block
@@ -52,7 +50,7 @@ instance Commonmark.IsBlock Inlines Blocks where
 
   codeBlock _ _ = blNull
 
-  heading _ = inLineHolder
+  heading _ = singleton . Heading . toList
 
   rawBlock _ _ = blNull
 
@@ -65,7 +63,7 @@ type Inline = (Inline', Maybe Commonmark.SourceRange)
 data Inline'
   = IlNull
   | Link [Inline] Text Text
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
 type Inlines = Seq Inline
 
