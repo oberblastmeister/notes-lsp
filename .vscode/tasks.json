@@ -1,0 +1,41 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "project repl",
+            "type": "shell",
+            "command": "ghcid --target='notes-lsp:exe:notes-lsp'",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "runOptions": {
+                "runOn": "default"
+            }
+        },
+        {
+            "label": "test repl",
+            "type": "shell",
+            "command": "ghcid --target='notes-lsp:test:notes-lsp-test' --target='notes-lsp:lib' --warnings --run='Main.main'",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        },
+        {
+            "label": "hoogle server",
+            "type": "shell",
+            "command": "stack hoogle -- server --local",
+            "group": "build",
+        },
+        {
+            "label": "hoogle generate",
+            "type": "shell",
+            "command": "stack hoogle -- generate --local",
+            "group": "build",
+        }
+    ]
+}

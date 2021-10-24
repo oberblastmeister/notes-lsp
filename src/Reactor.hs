@@ -25,25 +25,21 @@ import qualified Control.Exception as E
 import Control.Lens
 import qualified Control.Monad as Monad
 import qualified Data.Aeson as Aeson
-import qualified Data.HashMap.Strict as H
 import qualified Data.IORef as IORef
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Handlers
-import qualified Language.LSP.Diagnostics as Diagnostics
 import qualified Language.LSP.Server as Server
 import qualified Language.LSP.Types as Handlers
 import qualified Language.LSP.Types as LSP
-import qualified Language.LSP.Types.Lens as LSP
-import qualified Language.LSP.VFS as VFS
 import MyPrelude
 import Path (Dir, File, Rel, toFilePath, (</>))
 import qualified Path
 import qualified Path.IO as PIO
-import State (ServerM, ServerM', ServerState)
+import State (ServerM, ServerState)
 import qualified State
 import qualified System.Exit as Exit
-import System.Log.Logger (debugM, errorM)
+import System.Log.Logger (debugM)
 import qualified System.Log.Logger as Logger
 
 main :: IO ()

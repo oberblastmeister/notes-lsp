@@ -35,6 +35,7 @@ library
       Markdown.Parsing
       Markdown.Tags
       MyPrelude
+      Proto
       Reactor
       State
   other-modules:
@@ -77,7 +78,7 @@ library
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -154,7 +155,7 @@ executable notes-lsp
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -194,6 +195,7 @@ test-suite notes-lsp-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      ServerSpec
       Spec
       Paths_notes_lsp
   hs-source-dirs:
@@ -234,7 +236,7 @@ test-suite notes-lsp-test
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -251,6 +253,7 @@ test-suite notes-lsp-test
     , ixset-typed
     , lens
     , lsp
+    , lsp-test
     , lsp-types
     , megaparsec
     , monad-par

@@ -5,15 +5,8 @@ module Handlers
   )
 where
 
--- import qualified Control.Monad.STM as STM
-
--- import qualified Control.Monad.STM as STM
-
 import qualified Config
 import qualified Control.Concurrent as Concurrent
--- import qualified Control.Monad.STM as STM
-
--- import qualified Control.Monad.STM as STM
 import Control.Lens
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
@@ -24,9 +17,11 @@ import qualified Language.LSP.Types as LSP
 import qualified Language.LSP.Types.Lens as LSP
 import qualified Language.LSP.VFS as VFS
 import MyPrelude
+import qualified Relude.Unsafe as Unsafe
 import State (ServerM, ServerM')
 import qualified State
 import System.Log.Logger (debugM, errorM)
+import Data.Rope.UTF16 (Rope)
 
 type Handler a = Server.Handler ServerM a
 
@@ -35,17 +30,18 @@ type Handlers = Server.Handlers ServerM
 allHandlers :: Handlers
 allHandlers =
   mconcat
-    [ Handlers.initialized,
-      Handlers.workspaceDidChangeConfiguration,
-      Handlers.textDocumentDidOpen,
-      Handlers.textDocumentDidChange,
-      Handlers.textDocumentDidSave,
-      Handlers.textDocumentDidRename,
-      Handlers.textDocumentDidHover,
-      Handlers.textDocumentSymbol,
-      Handlers.textDocumentCodeAction,
-      Handlers.workspaceExecuteCommand,
-      Handlers.testing
+    [ initialized,
+      workspaceDidChangeConfiguration,
+      textDocumentDidOpen,
+      textDocumentDidChange,
+      textDocumentDidSave,
+      textDocumentDidRename,
+      textDocumentDidHover,
+      textDocumentSymbol,
+      textDocumentCodeAction,
+      workspaceExecuteCommand,
+      textDocumentCompletion,
+      testing
     ]
 
 -- | Analyze the file and send any diagnostics to the client in a
@@ -198,9 +194,51 @@ workspaceExecuteCommand = requestHandler LSP.SWorkspaceExecuteCommand $ \req res
   responder (Right (Aeson.Object mempty)) -- respond to the request
   void $
     Server.withProgress "Executing some long running command" Server.Cancellable $ \update ->
-      forM [(0 :: Double) .. 10] $ \i -> do
+      forM [0 .. 10] $ \(i :: Double) -> do
         update (Server.ProgressAmount (Just (i * 10)) (Just "Doing stuff"))
         liftIO $ Concurrent.threadDelay (1 * 1000000)
+
+textDocumentCompletion :: Handlers
+textDocumentCompletion = requestHandler LSP.STextDocumentCompletion $ \req responder -> do
+  let params = req ^. LSP.params
+      uri = params ^. LSP.textDocument . LSP.uri . to LSP.toNormalizedUri
+  -- prefix <- VFS.getCompletionPrefix Position VirtualFile
+  vf <- Server.getVirtualFile uri <&> Unsafe.fromJust
+
+  -- liftIO $ debugM "reactor.handle" $ show params
+  let items =
+        LSP.List $
+          fmap
+            (`completionItem` LSP.CiFile)
+            [ "first",
+              "second"
+            ]
+  responder $ Right $ LSP.InL items
+
+-- shouldComplete :: Rope -> Bool
+-- shouldCompletekj
+
+completionItem :: Text -> LSP.CompletionItemKind -> LSP.CompletionItem
+completionItem _label _kind =
+  LSP.CompletionItem
+    { _label,
+      _kind = Just _kind,
+      _tags = Nothing,
+      _detail = Nothing,
+      _documentation = Nothing,
+      _deprecated = Nothing,
+      _preselect = Nothing,
+      _sortText = Nothing,
+      _filterText = Nothing,
+      _insertText = Nothing,
+      _insertTextFormat = Nothing,
+      _insertTextMode = Nothing,
+      _textEdit = Nothing,
+      _additionalTextEdits = Nothing,
+      _commitCharacters = Nothing,
+      _command = Nothing,
+      _xdata = Nothing
+    }
 
 testing :: Handlers
 testing = requestHandler (LSP.SCustomMethod "notes-lsp/testing") $ \req responder -> do

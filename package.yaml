@@ -1,14 +1,14 @@
-name:                notes-lsp
-version:             0.1.0.0
-github:              "githubuser/haskell-lsp-hello"
-license:             BSD3
-author:              "Author name here"
-maintainer:          "example@example.com"
-copyright:           "2021 Author name here"
+name: notes-lsp
+version: 0.1.0.0
+github: "githubuser/haskell-lsp-hello"
+license: BSD3
+author: "Author name here"
+maintainer: "example@example.com"
+copyright: "2021 Author name here"
 
 extra-source-files:
-- README.md
-- ChangeLog.md
+  - README.md
+  - ChangeLog.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -17,41 +17,41 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/githubuser/haskell-lsp-hello#readme>
+description: Please see the README on GitHub at <https://github.com/githubuser/haskell-lsp-hello#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- relude
-- transformers
-- mtl
-- unordered-containers
-- containers
-- dlist
-- text
-- lsp
-- lsp-types
-- aeson
-- stm
-- monad-par
-- hslogger
-- commonmark
-- commonmark-pandoc
-- commonmark-extensions
-- pandoc-types
-- pretty-simple
-- lens
-- generic-lens
-- path
-- path-io
-- rope-utf16-splay
-- fgl
-- unliftio-core
-- exceptions
-- megaparsec
-- parsec
-- split
-- ixset-typed
-  
+  - base >= 4.7 && < 5
+  - relude
+  - transformers
+  - mtl
+  - unordered-containers
+  - containers
+  - dlist
+  - text
+  - lsp
+  - lsp-types
+  - aeson
+  - stm
+  - monad-par
+  - hslogger
+  - commonmark
+  - commonmark-pandoc
+  - commonmark-extensions
+  - pandoc-types
+  - pretty-simple
+  - lens
+  - generic-lens
+  - path
+  - path-io
+  - rope-utf16-splay
+  - fgl
+  - unliftio-core
+  - exceptions
+  - megaparsec
+  - parsec
+  - split
+  - ixset-typed
+
 default-extensions:
   - NoImplicitPrelude
   - FlexibleInstances
@@ -81,7 +81,7 @@ default-extensions:
   - DeriveGeneric
   - DeriveDataTypeable
   - DeriveLift
-  - DeriveTraversable 
+  - DeriveTraversable
   - GeneralizedNewtypeDeriving
   - GADTs
   - PolyKinds
@@ -95,32 +95,30 @@ ghc-options:
   - -Wincomplete-uni-patterns
   - -Wredundant-constraints
   - -Wno-unused-do-bind
-  # for stan to work
-  - -fwrite-ide-info
-  - -hiedir=.hie
 
 library:
   source-dirs: src
 
 executables:
   notes-lsp:
-    main:                Main.hs
-    source-dirs:         app
+    main: Main.hs
+    source-dirs: app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - notes-lsp
+      - notes-lsp
 
 tests:
   notes-lsp-test:
-    main:                Main.hs
-    source-dirs:         test
+    main: Main.hs
+    source-dirs: test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - hspec
-    - notes-lsp
+      - hspec
+      - lsp-test
+      - notes-lsp
