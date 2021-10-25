@@ -26,8 +26,10 @@ dependencies:
   - mtl
   - unordered-containers
   - containers
+  - vector
   - dlist
   - text
+  - bytestring
   - lsp
   - lsp-types
   - aeson

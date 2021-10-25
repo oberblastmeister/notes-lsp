@@ -15,7 +15,8 @@ import qualified Prelude as P
 main :: IO ()
 main = do
   -- runIndexSet
-  Spec.main
+  -- Spec.main
+  parseTree
   return ()
 
 parseTree :: IO ()
@@ -28,6 +29,8 @@ parseTree = do
   let s =
         "# hi\n\
         \[[adsfasdf]]"
+  let s = "\tasdf\t"
+  let s = "a𐐀b"
   case Markdown.Parsing.parseMarkdown "<none>" s of
     Left e -> error $ show e
     Right bs -> pPrint bs

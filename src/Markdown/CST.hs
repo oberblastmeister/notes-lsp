@@ -29,7 +29,11 @@ blNull = singleton BlNull
 note :: Blocks -> Inlines
 note = singleton . Note . toList
 
-addRange :: (Show a, HasCallStack) => (a, Maybe Commonmark.SourceRange) -> Commonmark.SourceRange -> (a, Maybe Commonmark.SourceRange)
+addRange ::
+  (Show a, HasCallStack) =>
+  (a, Maybe Commonmark.SourceRange) ->
+  Commonmark.SourceRange ->
+  (a, Maybe Commonmark.SourceRange)
 addRange old pos =
   let !_ =
         if isJust (old ^. _2)

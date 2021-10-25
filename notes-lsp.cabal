@@ -26,7 +26,9 @@ source-repository head
 library
   exposed-modules:
       Config
+      Data.Range
       Handlers
+      LineIndex
       Markdown.AST
       Markdown.Collect
       Markdown.Connection
@@ -82,6 +84,7 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , commonmark
     , commonmark-extensions
     , commonmark-pandoc
@@ -111,6 +114,7 @@ library
     , transformers
     , unliftio-core
     , unordered-containers
+    , vector
   default-language: Haskell2010
 
 executable notes-lsp
@@ -159,6 +163,7 @@ executable notes-lsp
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , commonmark
     , commonmark-extensions
     , commonmark-pandoc
@@ -189,6 +194,7 @@ executable notes-lsp
     , transformers
     , unliftio-core
     , unordered-containers
+    , vector
   default-language: Haskell2010
 
 test-suite notes-lsp-test
@@ -240,6 +246,7 @@ test-suite notes-lsp-test
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , commonmark
     , commonmark-extensions
     , commonmark-pandoc
@@ -272,4 +279,5 @@ test-suite notes-lsp-test
     , transformers
     , unliftio-core
     , unordered-containers
+    , vector
   default-language: Haskell2010
