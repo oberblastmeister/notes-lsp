@@ -80,6 +80,7 @@ library
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
+      TypeFamilies
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind
   build-depends:
       aeson
@@ -92,6 +93,7 @@ library
     , dlist
     , exceptions
     , fgl
+    , foldl
     , generic-lens
     , hslogger
     , ixset-typed
@@ -159,6 +161,7 @@ executable notes-lsp
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
+      TypeFamilies
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
@@ -171,6 +174,7 @@ executable notes-lsp
     , dlist
     , exceptions
     , fgl
+    , foldl
     , generic-lens
     , hslogger
     , ixset-typed
@@ -242,6 +246,7 @@ test-suite notes-lsp-test
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
+      TypeFamilies
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
@@ -254,6 +259,7 @@ test-suite notes-lsp-test
     , dlist
     , exceptions
     , fgl
+    , foldl
     , generic-lens
     , hslogger
     , hspec

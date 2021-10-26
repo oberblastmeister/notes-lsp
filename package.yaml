@@ -53,6 +53,7 @@ dependencies:
   - parsec
   - split
   - ixset-typed
+  - foldl
 
 default-extensions:
   - NoImplicitPrelude
@@ -90,6 +91,7 @@ default-extensions:
   - OverloadedLabels
   - ViewPatterns
   - PatternSynonyms
+  - TypeFamilies
 
 ghc-options:
   - -Wall

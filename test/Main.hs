@@ -1,6 +1,7 @@
 module Main (main) where
 
 import MyPrelude
+import qualified LineIndex
 import qualified Spec
 import Control.Lens
 import Data.Data (Data)
@@ -16,8 +17,13 @@ main :: IO ()
 main = do
   -- runIndexSet
   -- Spec.main
-  parseTree
+  -- parseTree
+  runGroupBy
   return ()
+  
+runGroupBy :: IO ()
+runGroupBy = do
+  print $ LineIndex.addCol $ LineIndex.addCharLen "adfadf😋"
 
 parseTree :: IO ()
 parseTree = do
