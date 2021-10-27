@@ -1,25 +1,32 @@
 module LineIndex where
 
 import Control.Foldl (Fold (Fold))
+import qualified Control.Foldl as Fold
 import Control.Lens hiding (Fold)
 import qualified Data.ByteString as Bytestring
 import qualified Data.Char as Char
-import qualified Data.List as List
+import qualified Data.IntMap as IntMap
 import qualified Data.List.Split as Split
 import Data.Range (Range (RangeV))
 import qualified Data.Range as Range
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Text.Encoding
-import qualified Data.Vector.Generic as V
-import qualified Data.Vector.Generic.Mutable as VM
 import qualified Data.Vector.Unboxed as VU
 import MyPrelude
 
--- zero based
--- inclusive of start
--- exclusive of end
-rangeCharLenUtf16 :: Range -> Int
-rangeCharLenUtf16 rc =
+type Utf8Range = Range
+
+data LineIndex = LineIndex
+  { -- Offset of the beginning of each line, zero-based.
+    -- First one is always zero
+    newLines :: !(VU.Vector Int),
+    -- List of non-ASCII characters on each line, zero-based
+    utf16Lines :: !(IntMap (VU.Vector Utf8Range))
+  }
+  deriving (Show, Eq)
+
+utf8RangeUtf16 :: Range -> Int
+utf8RangeUtf16 rc =
   if Range.length rc == 4
     then 2
     else 1
@@ -27,18 +34,15 @@ rangeCharLenUtf16 rc =
 charLen :: Char -> Int
 charLen = Bytestring.length . Text.Encoding.encodeUtf8 . T.singleton
 
-type RangeChar = Range
 
-data LineIndex = LineIndex
-  { newLines :: !(VU.Vector Int),
-    utf16Lines :: !(IntMap (VU.Vector RangeChar))
-  }
+endByKeepR :: (a -> Bool) -> [a] -> [[a]]
+endByKeepR = Split.split . Split.dropFinalBlank . Split.keepDelimsR . Split.whenElt
 
-addCharLen :: [Char] -> [(Char, Int)]
-addCharLen = map (\c -> (c, charLen c))
+lines' :: [(Char, Int)] -> [[(Char, Int)]]
+lines' = endByKeepR (\tup -> tup ^. _1 == '\n')
 
-addCol :: [(Char, Int)] -> [(Char, Int, Range)]
-addCol =
+addRange :: [(Char, Int)] -> [(Char, Int, Utf8Range)]
+addRange =
   drop 1
     . scanl'
       ( \(_, _, RangeV _ end) (c, len) ->
@@ -49,7 +53,7 @@ addCol =
       )
       (error "", error "", Range.new 0 0)
 
-utf16LineFold :: Fold (Char, Int, RangeChar) (VU.Vector RangeChar)
+utf16LineFold :: Fold (Char, Int, Utf8Range) (VU.Vector Utf8Range)
 utf16LineFold =
   Fold
     ( \v (c, _, rc) ->
@@ -60,37 +64,45 @@ utf16LineFold =
     VU.empty
     id
 
--- sum :: Num a => Fold a a
--- sum = Fold (+) 0 id
+lineFold :: [(Char, Int, Utf8Range)] -> (VU.Vector Utf8Range, Int, Bool)
+lineFold =
+  Fold.fold
+    ( (,,) <$> utf16LineFold
+        <*> (Fold.last <&> (^?! each . _3 . Range._end)) -- invariant: the line cannot be empty
+        <*> (Fold.last <&> (^?! each . _1 . to (== '\n')))
+    )
 
--- utf16LineFold :: Fold (Char, Int, Int)
+newLinesFold :: Fold ((VU.Vector Utf8Range, Int, Bool), Int) (VU.Vector Int)
+newLinesFold =
+  Fold
+    ( \v ((_, lastEnd, hasNewline), _) ->
+        if hasNewline
+          then VU.snoc v lastEnd
+          else v
+    )
+    (VU.singleton 0) -- the first line offset is 0
+    id
 
--- infoWithLine :: [[Char]] -> Int -> [[Char, (Int, Int, Int)]]
--- infoWithLine lns start = List.scanl'
+utf16LinesFold :: Fold ((VU.Vector Utf8Range, Int, Bool), Int) (IntMap (VU.Vector Utf8Range))
+utf16LinesFold =
+  Fold
+    ( \im ((ranges, _, _), lNum) ->
+        if VU.null ranges
+          then im
+          else im & at lNum ?~ ranges
+    )
+    IntMap.empty
+    id
 
--- defaultLineIndex :: LineIndex
--- defaultLineIndex = LineIndex { newLines = VU.Vector.new}
+lineIndexFromData :: [((VU.Vector Utf8Range, Int, Bool), Int)] -> LineIndex
+lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
 
--- fromText :: Text -> LineIndex
--- fromText text = do
--- lineIndexFromText :: Text -> LineIndex
--- lineIndexFromText text = do
---   undefined
---   where
---     -- go text
-
---     go ::
---       Text ->
---       LineIndex ->
---       (DList Range, DList (Int, RangeChar))
---         VU.Vector
---         RangeChar ->
---       Int ->
---       Int ->
---       LineIndex
---     go t lineIndex utf16Chars row col
---       | T.null t = lineIndex
---       | otherwise = undefined
-
--- groupByLines :: [Char] -> [[Char]]
--- groupByLines = Split.endBy "\n"
+makeLineIndex :: Text -> LineIndex
+makeLineIndex =
+  T.unpack
+    >>> map (\c -> (c, charLen c))
+    >>> lines'
+    >>> map addRange
+    >>> map lineFold
+    >>> (`zip` [0 ..])
+    >>> lineIndexFromData

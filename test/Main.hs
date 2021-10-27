@@ -8,7 +8,6 @@ import Data.Data (Data)
 import Data.IxSet.Typed (IxSet, (@<), (@=))
 import qualified Data.IxSet.Typed as IxSet
 import qualified Markdown.Parsing
-import MyPrelude
 import Text.Pretty.Simple
 import qualified Prelude as P
 
@@ -20,10 +19,10 @@ main = do
   -- parseTree
   runGroupBy
   return ()
-  
+
 runGroupBy :: IO ()
 runGroupBy = do
-  print $ LineIndex.addCol $ LineIndex.addCharLen "adfadf😋"
+  print $ LineIndex.makeLineIndex "asd😀fadf\nasdfasdf\n😀a😋sdfa"
 
 parseTree :: IO ()
 parseTree = do

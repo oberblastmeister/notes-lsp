@@ -28,13 +28,13 @@
         {
             "label": "hoogle server",
             "type": "shell",
-            "command": "stack hoogle -- server --local",
+            "command": "stack hoogle --server",
             "group": "build",
         },
         {
-            "label": "hoogle generate",
+            "label": "hoogle rebuild",
             "type": "shell",
-            "command": "stack hoogle -- generate --local",
+            "command": "stack hoogle --rebuild",
             "group": "build",
         }
     ]
