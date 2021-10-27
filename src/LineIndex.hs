@@ -130,74 +130,67 @@ charLenUtf16 = utf16Offset' . lenToUtf16 . unOffset . charLen
 endByKeepR :: (a -> Bool) -> [a] -> [[a]]
 endByKeepR = Split.split . Split.dropFinalBlank . Split.keepDelimsR . Split.whenElt
 
-lines' :: [(Char, Int)] -> [[(Char, Int)]]
-lines' = endByKeepR (^. L._1 . L.to (== '\n'))
-
 new :: Text -> LineIndex
 new =
   T.unpack
     >>> map (\c -> (c, unOffset $ charLen c))
+    >>> scanl'' (\(_, _, !offset) (c, len) -> (c, len, offset + len)) (error "", error "", 0)
     >>> lines'
     >>> map addRange
     >>> map lineFold
-    >>> scanl'' (\(_, !prev, _) lineData -> lineData & L._2 %~ (+ prev)) (error "", 0, error "")
     >>> (`zip` [0 ..])
     >>> lineIndexFromData
-
-addRange :: [(Char, Int)] -> [(Char, Int, Utf8Range)]
-addRange =
-  scanl''
-    ( \(_, _, RangeV _ end) (c, len) ->
-        ( c,
-          len,
-          Range.new end (end + len)
+  where
+    addRange =
+      scanl''
+        ( \(_, _, RangeV _ end) (c, len, offset) ->
+            ( c,
+              offset,
+              Range.new end (end + len)
+            )
         )
-    )
-    (error "", error "", Range.new 0 0)
+        (error "", error "", Range.new 0 0)
 
-utf16LineFold :: Fold (Char, Int, Utf8Range) (VU.Vector Utf8Range)
-utf16LineFold =
-  Fold
-    ( \v (c, _, rc) ->
-        if Char.isAscii c
-          then v
-          else VU.snoc v rc
-    )
-    VU.empty
-    id
+    lines' = endByKeepR (^. L._1 . L.to (== '\n'))
 
-lineFold :: [(Char, Int, Utf8Range)] -> (VU.Vector Utf8Range, Int, Bool)
-lineFold =
-  Fold.fold
-    ( (,,) <$> utf16LineFold
-        <*> (Fold.last <&> (^?! L.each . L._3 . Range._end)) -- invariant: the line cannot be empty
-        <*> (Fold.last <&> (^?! L.each . L._1 . L.to (== '\n')))
-    )
+    utf16LineFold =
+      Fold
+        ( \v (c, _, rc) ->
+            if Char.isAscii c
+              then v
+              else VU.snoc v rc
+        )
+        VU.empty
+        id
 
-newLinesFold :: Fold ((VU.Vector Utf8Range, Int, Bool), Int) (VU.Vector Int)
-newLinesFold =
-  Fold
-    ( \v ((_, lastEnd, hasNewline), _) ->
-        if hasNewline
-          then VU.snoc v lastEnd
-          else v
-    )
-    (VU.singleton 0) -- the first line offset is 0
-    id
+    lineFold =
+      Fold.fold
+        ( (,,) <$> utf16LineFold
+            <*> (Fold.last <&> (^?! L.each . L._2)) -- invariant: the line cannot be empty
+            <*> (Fold.last <&> (^?! L.each . L._1 . L.to (== '\n')))
+        )
 
-utf16LinesFold :: Fold ((VU.Vector Utf8Range, Int, Bool), Int) (IntMap (VU.Vector Utf8Range))
-utf16LinesFold =
-  Fold
-    ( \im ((ranges, _, _), lNum) ->
-        if VU.null ranges
-          then im
-          else im & L.at lNum ?~ ranges
-    )
-    IntMap.empty
-    id
+    newLinesFold =
+      Fold
+        ( \v ((_, lastEnd, hasNewline), _) ->
+            if hasNewline
+              then VU.snoc v lastEnd
+              else v
+        )
+        (VU.singleton 0) -- the first line offset is 0
+        id
 
-lineIndexFromData :: [((VU.Vector Utf8Range, Int, Bool), Int)] -> LineIndex
-lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
+    utf16LinesFold =
+      Fold
+        ( \im ((ranges, _, _), lNum) ->
+            if VU.null ranges
+              then im
+              else im & L.at lNum ?~ ranges
+        )
+        IntMap.empty
+        id
+
+    lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
 
 -- | offset is in utf8
 lineCol :: Utf8Offset -> LineIndex -> Utf8LineCol
