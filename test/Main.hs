@@ -15,9 +15,9 @@ import qualified Prelude as P
 main :: IO ()
 main = do
   -- runIndexSet
-  -- Spec.main
+  Spec.main
   -- parseTree
-  runGroupBy
+  -- runGroupBy
   return ()
 
 runGroupBy :: IO ()

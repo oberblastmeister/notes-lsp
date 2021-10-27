@@ -164,8 +164,11 @@ utf16ToUtf8Col :: Int -> Int -> LineIndex -> Int
 utf16ToUtf8Col line col lineIndex =
   ( lineIndex ^. #nonAscii . at line & _Just
       %~ ( (^.. each)
-             >>> takeWhile (^. Range._end . to (<= col))
-             >>> map lenDiff
+             >>> map (\r -> (r, lenDiff r))
+             >>> scanl' (\t (r, diff) -> (r, diff, t ^. _3' + diff)) (error "", error "", 0)
+             >>> drop 1
+             >>> takeWhile (\t -> col <= t ^. _1 . Range._end)
+             >>> map (^. _2)
              >>> foldl' (+) col
          )
   )

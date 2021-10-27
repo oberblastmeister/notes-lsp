@@ -205,6 +205,7 @@ test-suite notes-lsp-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      LineIndexSpec
       ServerSpec
       Spec
       Paths_notes_lsp
