@@ -34,12 +34,21 @@ utf8RangeUtf16 rc =
 charLen :: Char -> Int
 charLen = Bytestring.length . Text.Encoding.encodeUtf8 . T.singleton
 
-
 endByKeepR :: (a -> Bool) -> [a] -> [[a]]
 endByKeepR = Split.split . Split.dropFinalBlank . Split.keepDelimsR . Split.whenElt
 
 lines' :: [(Char, Int)] -> [[(Char, Int)]]
 lines' = endByKeepR (\tup -> tup ^. _1 == '\n')
+
+new :: Text -> LineIndex
+new =
+  T.unpack
+    >>> map (\c -> (c, charLen c))
+    >>> lines'
+    >>> map addRange
+    >>> map lineFold
+    >>> (`zip` [0 ..])
+    >>> lineIndexFromData
 
 addRange :: [(Char, Int)] -> [(Char, Int, Utf8Range)]
 addRange =
@@ -96,13 +105,3 @@ utf16LinesFold =
 
 lineIndexFromData :: [((VU.Vector Utf8Range, Int, Bool), Int)] -> LineIndex
 lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
-
-makeLineIndex :: Text -> LineIndex
-makeLineIndex =
-  T.unpack
-    >>> map (\c -> (c, charLen c))
-    >>> lines'
-    >>> map addRange
-    >>> map lineFold
-    >>> (`zip` [0 ..])
-    >>> lineIndexFromData
