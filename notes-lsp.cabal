@@ -40,6 +40,7 @@ library
       Proto
       Reactor
       State
+      Utils
   other-modules:
       Paths_notes_lsp
   hs-source-dirs:

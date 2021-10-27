@@ -15,6 +15,31 @@ import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as VU
 import MyPrelude
+import Utils (scanl'')
+
+type Offset :: IndexKind -> *
+newtype Offset a = Offset {unOffset :: Int}
+  deriving
+    ( Show,
+      Eq,
+      Ord,
+      Num
+    )
+
+type Utf8Offset = Offset 'Utf8
+
+type CharOffset = Offset 'Char
+
+type Utf16Offset = Offset 'Utf16
+
+utf8Offset' :: Int -> Utf8Offset
+utf8Offset' = coerce
+
+utf16Offset' :: Int -> Utf16Offset
+utf16Offset' = coerce
+
+charOffset' :: Int -> CharOffset
+charOffset' = coerce
 
 type Utf8Range = Range
 
@@ -27,15 +52,15 @@ data LineIndex = LineIndex
   }
   deriving (Show, Eq, Generic)
 
-data LineColKind = Utf8 | Utf16 | Char
+data IndexKind = Utf8 | Utf16 | Char
 
--- type OtherEncoding :: LineColKind -> LineColKind
+-- type OtherEncoding :: IndexKind -> IndexKind
 
--- type family OtherEncoding a where
---   OtherEncoding 'Utf8 = 'Utf16
---   OtherEncoding 'Utf16 = 'Utf8
+type family OtherEncoding a where
+  OtherEncoding 'Utf8 = 'Utf16
+  OtherEncoding 'Utf16 = 'Utf8
 
-type LineCol :: LineColKind -> *
+type LineCol :: IndexKind -> *
 data LineCol a = LineCol
   { line :: !Int,
     col :: !Int
@@ -51,7 +76,7 @@ data SEncodingKind a where
   SUtf16 :: SEncodingKind 'Utf16
   SChar :: SEncodingKind 'Char
 
-type SingEncodingKind :: LineColKind -> Constraint
+type SingEncodingKind :: IndexKind -> Constraint
 class SingEncodingKind a where
   sing :: SEncodingKind a
 
@@ -93,8 +118,14 @@ utf8Len = Range.length
 lenDiff :: Utf8Range -> Int
 lenDiff r = utf8Len r - utf16Len r
 
-charLen :: Char -> Int
-charLen = Bytestring.length . Text.Encoding.encodeUtf8 . T.singleton
+lenToUtf16 :: Int -> Int
+lenToUtf16 i = if i == 4 then 2 else 1
+
+charLen :: Char -> Utf8Offset
+charLen = utf8Offset' . Bytestring.length . Text.Encoding.encodeUtf8 . T.singleton
+
+charLenUtf16 :: Char -> Utf16Offset
+charLenUtf16 = utf16Offset' . lenToUtf16 . unOffset . charLen
 
 endByKeepR :: (a -> Bool) -> [a] -> [[a]]
 endByKeepR = Split.split . Split.dropFinalBlank . Split.keepDelimsR . Split.whenElt
@@ -105,24 +136,24 @@ lines' = endByKeepR (^. L._1 . L.to (== '\n'))
 new :: Text -> LineIndex
 new =
   T.unpack
-    >>> map (\c -> (c, charLen c))
+    >>> map (\c -> (c, unOffset $ charLen c))
     >>> lines'
     >>> map addRange
     >>> map lineFold
+    >>> scanl'' (\(_, !prev, _) lineData -> lineData & L._2 %~ (+ prev)) (error "", 0, error "")
     >>> (`zip` [0 ..])
     >>> lineIndexFromData
 
 addRange :: [(Char, Int)] -> [(Char, Int, Utf8Range)]
 addRange =
-  drop 1
-    . scanl'
-      ( \(_, _, RangeV _ end) (c, len) ->
-          ( c,
-            len,
-            Range.new end (end + len)
-          )
-      )
-      (error "", error "", Range.new 0 0)
+  scanl''
+    ( \(_, _, RangeV _ end) (c, len) ->
+        ( c,
+          len,
+          Range.new end (end + len)
+        )
+    )
+    (error "", error "", Range.new 0 0)
 
 utf16LineFold :: Fold (Char, Int, Utf8Range) (VU.Vector Utf8Range)
 utf16LineFold =
@@ -169,22 +200,23 @@ lineIndexFromData :: [((VU.Vector Utf8Range, Int, Bool), Int)] -> LineIndex
 lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
 
 -- | offset is in utf8
-lineCol :: Int -> LineIndex -> LineCol 'Utf8
-lineCol offset lineIndex = LineCol {line, col}
+lineCol :: Utf8Offset -> LineIndex -> Utf8LineCol
+lineCol offset lineIndex = LineCol {line, col = col}
   where
+    offset' = coerce offset :: Int
     newLines = lineIndex ^. #newLines
-    line = partitionPoint (<= offset) newLines - 1
+    line = partitionPoint (<= offset') newLines - 1
     lineStartOffset = newLines ^?! L.ix line
-    col = offset - lineStartOffset
+    col = offset' - lineStartOffset
 
--- changeCol :: forall a. SingEncodingKind a => LineIndex -> LineCol a -> LineCol (OtherEncoding a)
--- changeCol lineIndex LineCol {line, col} = case sing @a of
---   SUtf8 -> LineCol {line = utf8toUtf16Col lineIndex line col, col}
---   SUtf16 -> LineCol {line = utf16toUtf8Col lineIndex line col, col}
+lineColOffset :: Utf8LineCol -> LineIndex -> Utf8Offset
+lineColOffset LineCol {line, col} lineIndex = lineIndex ^?! #newLines . L.ix line . L.to coerce + coerce col
 
--- lineColToOffset :: LineCol
--- lineCol :: Int -> LineIndex -> Utf8LineCol
--- lineCol offset lineIndex =
+lineColToUtf8 :: Utf8LineCol -> LineIndex -> Utf16LineCol
+lineColToUtf8 LineCol {line, col} lineIndex = LineCol {line, col = utf8ToUtf16Col line col lineIndex}
+
+lineColToUtf16 :: Utf16LineCol -> LineIndex -> Utf8LineCol
+lineColToUtf16 LineCol {line, col} lineIndex = LineCol {line, col = utf16ToUtf8Col line col lineIndex}
 
 utf16ToUtf8Col :: Int -> Int -> LineIndex -> Int
 utf16ToUtf8Col line col lineIndex =
