@@ -2,7 +2,8 @@ module LineIndex where
 
 import Control.Foldl (Fold (Fold))
 import qualified Control.Foldl as Fold
-import Control.Lens hiding (Fold)
+import qualified Control.Lens as L
+import Control.Lens.Operators
 import qualified Data.ByteString as Bytestring
 import qualified Data.Char as Char
 import qualified Data.IntMap as IntMap
@@ -11,12 +12,11 @@ import Data.Range (Range (RangeV))
 import qualified Data.Range as Range
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Text.Encoding
+import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as VU
 import MyPrelude
 
 type Utf8Range = Range
-
--- data Test = Test {line :: Int}
 
 data LineIndex = LineIndex
   { -- Offset of the beginning of each line, zero-based.
@@ -64,6 +64,23 @@ instance SingEncodingKind 'Utf16 where
 instance SingEncodingKind 'Char where
   sing = SChar
 
+-- | Returns the index of the partition point according to the given predicate
+-- | (the index of the first element of the second partition).
+partitionPoint :: V.Vector v a => (a -> Bool) -> v a -> Int
+partitionPoint f v = go 0 (V.length v)
+  where
+    go :: Int -> Int -> Int
+    go left right
+      | left == right = left
+      | otherwise =
+        let mid = left + (right - left) `div` 2
+            val = v V.! mid
+            (left', right') =
+              if f val
+                then (mid + 1, right)
+                else (left, mid)
+         in go left' right'
+
 utf16Len :: Utf8Range -> Int
 utf16Len r =
   if Range.length r == 4
@@ -83,7 +100,7 @@ endByKeepR :: (a -> Bool) -> [a] -> [[a]]
 endByKeepR = Split.split . Split.dropFinalBlank . Split.keepDelimsR . Split.whenElt
 
 lines' :: [(Char, Int)] -> [[(Char, Int)]]
-lines' = endByKeepR (^. _1 . to (== '\n'))
+lines' = endByKeepR (^. L._1 . L.to (== '\n'))
 
 new :: Text -> LineIndex
 new =
@@ -122,8 +139,8 @@ lineFold :: [(Char, Int, Utf8Range)] -> (VU.Vector Utf8Range, Int, Bool)
 lineFold =
   Fold.fold
     ( (,,) <$> utf16LineFold
-        <*> (Fold.last <&> (^?! each . _3 . Range._end)) -- invariant: the line cannot be empty
-        <*> (Fold.last <&> (^?! each . _1 . to (== '\n')))
+        <*> (Fold.last <&> (^?! L.each . L._3 . Range._end)) -- invariant: the line cannot be empty
+        <*> (Fold.last <&> (^?! L.each . L._1 . L.to (== '\n')))
     )
 
 newLinesFold :: Fold ((VU.Vector Utf8Range, Int, Bool), Int) (VU.Vector Int)
@@ -143,13 +160,22 @@ utf16LinesFold =
     ( \im ((ranges, _, _), lNum) ->
         if VU.null ranges
           then im
-          else im & at lNum ?~ ranges
+          else im & L.at lNum ?~ ranges
     )
     IntMap.empty
     id
 
 lineIndexFromData :: [((VU.Vector Utf8Range, Int, Bool), Int)] -> LineIndex
 lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
+
+-- | offset is in utf8
+lineCol :: Int -> LineIndex -> LineCol 'Utf8
+lineCol offset lineIndex = LineCol {line, col}
+  where
+    newLines = lineIndex ^. #newLines
+    line = partitionPoint (<= offset) newLines - 1
+    lineStartOffset = newLines ^?! L.ix line
+    col = offset - lineStartOffset
 
 -- changeCol :: forall a. SingEncodingKind a => LineIndex -> LineCol a -> LineCol (OtherEncoding a)
 -- changeCol lineIndex LineCol {line, col} = case sing @a of
@@ -162,36 +188,36 @@ lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
 
 utf16ToUtf8Col :: Int -> Int -> LineIndex -> Int
 utf16ToUtf8Col line col lineIndex =
-  ( lineIndex ^. #nonAscii . at line & _Just
-      %~ ( (^.. each)
+  ( lineIndex ^. #nonAscii . L.at line & L._Just
+      %~ ( (^.. L.each)
              >>> map (\r -> (r, lenDiff r))
-             >>> scanl' (\t (r, diff) -> (r, diff, t ^. _3' + diff)) (error "", error "", 0)
+             >>> scanl' (\t (r, diff) -> (r, diff, t ^. L._3' + diff)) (error "", error "", 0)
              >>> drop 1
-             >>> takeWhile (\t -> col <= t ^. _1 . Range._end)
-             >>> map (^. _2)
+             >>> takeWhile (\t -> col <= t ^. L._1 . Range._end)
+             >>> map (^. L._2)
              >>> foldl' (+) col
          )
   )
-    ^. non col
+    ^. L.non col
 
 utf8ToUtf16Col :: Int -> Int -> LineIndex -> Int
 utf8ToUtf16Col line col lineIndex =
-  ( lineIndex ^. #nonAscii . at line & _Just
-      %~ ( (^.. each)
-             >>> takeWhile (^. Range._end . to (<= col))
+  ( lineIndex ^. #nonAscii . L.at line & L._Just
+      %~ ( (^.. L.each)
+             >>> takeWhile (^. Range._end . L.to (<= col))
              >>> map lenDiff
              >>> foldl' (-) col
          )
   )
-    ^. non col
+    ^. L.non col
 
 charToUtf16Col :: Int -> Int -> LineIndex -> Int
 charToUtf16Col line col lineIndex =
-  ( lineIndex ^. #nonAscii . at line & _Just
-      %~ ( (^.. each)
+  ( lineIndex ^. #nonAscii . L.at line & L._Just
+      %~ ( (^.. L.each)
              >>> take col
              >>> map utf16Len
              >>> sum
          )
   )
-    ^. non col
+    ^. L.non col
