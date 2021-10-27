@@ -22,7 +22,7 @@ main = do
 
 runGroupBy :: IO ()
 runGroupBy = do
-  print $ LineIndex.makeLineIndex "asd😀fadf\nasdfasdf\n😀a😋sdfa"
+  print $ LineIndex.new "asd😀fadf\nasdfasdf\n😀a😋sdfa"
 
 parseTree :: IO ()
 parseTree = do

@@ -16,20 +16,65 @@ import MyPrelude
 
 type Utf8Range = Range
 
+-- data Test = Test {line :: Int}
+
 data LineIndex = LineIndex
   { -- Offset of the beginning of each line, zero-based.
     -- First one is always zero
     newLines :: !(VU.Vector Int),
     -- List of non-ASCII characters on each line, zero-based
-    utf16Lines :: !(IntMap (VU.Vector Utf8Range))
+    nonAscii :: !(IntMap (VU.Vector Utf8Range))
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic)
 
-utf8RangeUtf16 :: Range -> Int
-utf8RangeUtf16 rc =
-  if Range.length rc == 4
+data LineColKind = Utf8 | Utf16 | Char
+
+-- type OtherEncoding :: LineColKind -> LineColKind
+
+-- type family OtherEncoding a where
+--   OtherEncoding 'Utf8 = 'Utf16
+--   OtherEncoding 'Utf16 = 'Utf8
+
+type LineCol :: LineColKind -> *
+data LineCol a = LineCol
+  { line :: !Int,
+    col :: !Int
+  }
+  deriving (Show, Eq, Generic)
+
+type Utf8LineCol = LineCol 'Utf8
+
+type Utf16LineCol = LineCol 'Utf16
+
+data SEncodingKind a where
+  SUtf8 :: SEncodingKind 'Utf8
+  SUtf16 :: SEncodingKind 'Utf16
+  SChar :: SEncodingKind 'Char
+
+type SingEncodingKind :: LineColKind -> Constraint
+class SingEncodingKind a where
+  sing :: SEncodingKind a
+
+instance SingEncodingKind 'Utf8 where
+  sing = SUtf8
+
+instance SingEncodingKind 'Utf16 where
+  sing = SUtf16
+
+instance SingEncodingKind 'Char where
+  sing = SChar
+
+utf16Len :: Utf8Range -> Int
+utf16Len r =
+  if Range.length r == 4
     then 2
     else 1
+
+utf8Len :: Utf8Range -> Int
+utf8Len = Range.length
+
+lenDiff :: Utf8Range -> Int
+lenDiff r = utf8Len r - utf16Len r
 
 charLen :: Char -> Int
 charLen = Bytestring.length . Text.Encoding.encodeUtf8 . T.singleton
@@ -38,7 +83,7 @@ endByKeepR :: (a -> Bool) -> [a] -> [[a]]
 endByKeepR = Split.split . Split.dropFinalBlank . Split.keepDelimsR . Split.whenElt
 
 lines' :: [(Char, Int)] -> [[(Char, Int)]]
-lines' = endByKeepR (\tup -> tup ^. _1 == '\n')
+lines' = endByKeepR (^. _1 . to (== '\n'))
 
 new :: Text -> LineIndex
 new =
@@ -105,3 +150,45 @@ utf16LinesFold =
 
 lineIndexFromData :: [((VU.Vector Utf8Range, Int, Bool), Int)] -> LineIndex
 lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
+
+-- changeCol :: forall a. SingEncodingKind a => LineIndex -> LineCol a -> LineCol (OtherEncoding a)
+-- changeCol lineIndex LineCol {line, col} = case sing @a of
+--   SUtf8 -> LineCol {line = utf8toUtf16Col lineIndex line col, col}
+--   SUtf16 -> LineCol {line = utf16toUtf8Col lineIndex line col, col}
+
+-- lineColToOffset :: LineCol
+-- lineCol :: Int -> LineIndex -> Utf8LineCol
+-- lineCol offset lineIndex =
+
+utf16ToUtf8Col :: Int -> Int -> LineIndex -> Int
+utf16ToUtf8Col line col lineIndex =
+  ( lineIndex ^. #nonAscii . at line & _Just
+      %~ ( (^.. each)
+             >>> takeWhile (^. Range._end . to (<= col))
+             >>> map lenDiff
+             >>> foldl' (+) col
+         )
+  )
+    ^. non col
+
+utf8ToUtf16Col :: Int -> Int -> LineIndex -> Int
+utf8ToUtf16Col line col lineIndex =
+  ( lineIndex ^. #nonAscii . at line & _Just
+      %~ ( (^.. each)
+             >>> takeWhile (^. Range._end . to (<= col))
+             >>> map lenDiff
+             >>> foldl' (-) col
+         )
+  )
+    ^. non col
+
+charToUtf16Col :: Int -> Int -> LineIndex -> Int
+charToUtf16Col line col lineIndex =
+  ( lineIndex ^. #nonAscii . at line & _Just
+      %~ ( (^.. each)
+             >>> take col
+             >>> map utf16Len
+             >>> sum
+         )
+  )
+    ^. non col
