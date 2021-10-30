@@ -37,6 +37,7 @@ fromBlock :: CST.Block -> ASTBuilder
 fromBlock (bl, _) = case bl of
   CST.BlInlineHolder ils -> fromInlines ils
   CST.BlBlockHolder bls -> fromBlocks bls
+  CST.BlList bbls -> foldMap fromBlocks bbls
   CST.BlNull -> mempty
 
 fromInlines :: [CST.Inline] -> ASTBuilder
@@ -44,7 +45,6 @@ fromInlines = foldMap fromInline
 
 fromInline :: CST.Inline -> ASTBuilder
 fromInline (il, sp) = case il of
-  CST.IlNull -> mempty
   CST.IlInlineHolder ils -> fromInlines ils
   CST.IlWikiLink CST.WikiLink {conn, dest, name} ->
     DL.singleton
@@ -57,3 +57,4 @@ fromInline (il, sp) = case il of
         Unsafe.fromJust sp
       )
   CST.IlBlockHolder bls -> fromBlocks bls
+  CST.IlNull -> mempty

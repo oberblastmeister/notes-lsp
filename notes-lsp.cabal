@@ -113,6 +113,7 @@ library
     , path
     , path-io
     , pretty-simple
+    , raw-strings-qq
     , relude
     , rope-utf16-splay
     , split
@@ -197,6 +198,7 @@ executable notes-lsp
     , path
     , path-io
     , pretty-simple
+    , raw-strings-qq
     , relude
     , rope-utf16-splay
     , split
@@ -287,6 +289,7 @@ test-suite notes-lsp-test
     , path
     , path-io
     , pretty-simple
+    , raw-strings-qq
     , relude
     , rope-utf16-splay
     , split

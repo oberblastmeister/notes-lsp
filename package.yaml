@@ -56,6 +56,7 @@ dependencies:
   - split
   - ixset-typed
   - foldl
+  - raw-strings-qq
 
 default-extensions:
   - NoImplicitPrelude

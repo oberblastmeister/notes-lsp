@@ -37,7 +37,9 @@ addRange ::
 addRange old pos =
   let !_ =
         if isJust (old ^. _2)
-          then error $ "setting a span range for: " <> show (old ^. _1)
+          then
+            -- error $ "setting a span range for: " <> show old <> "\nwith span: " <> show pos
+            ()
           else ()
    in old & _2 ?~ pos
 
@@ -46,6 +48,7 @@ type Block = (Block', Maybe Commonmark.SourceRange)
 data Block'
   = BlInlineHolder [Inline]
   | BlBlockHolder [Block]
+  | BlList [[Block]]
   | -- | DefinitionList [([Inline], [Block])]
     BlNull
   deriving (Show, Eq, Generic)
@@ -83,7 +86,7 @@ instance Commonmark.IsBlock Inlines Blocks where
 
   referenceLinkDefinition _ _ = blNull
 
-  list _ _ bls = bls ^.. each . each ^. to BlBlockHolder . to singleton
+  list _ _ = singleton . BlList . map toList
 
 instance Extensions.HasDiv Blocks where
   div_ = blBlHolder
@@ -97,7 +100,7 @@ instance Extensions.HasTaskList Inlines Blocks where
 instance Extensions.HasFootnote Inlines Blocks where
   footnote _ _ = blBlHolder
 
-  footnoteList bls = bls ^.. each . each ^. to (singleton . BlBlockHolder)
+  footnoteList = singleton . BlList . map toList
 
   footnoteRef _ _ = ilBlockHolder
 

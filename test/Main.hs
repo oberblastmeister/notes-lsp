@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Main (main) where
 
 import MyPrelude
@@ -10,13 +12,14 @@ import qualified Data.IxSet.Typed as IxSet
 import qualified Markdown.Parsing
 import Text.Pretty.Simple
 import qualified Prelude as P
+import Text.RawString.QQ
 
 
 main :: IO ()
 main = do
   -- runIndexSet
-  Spec.main
-  -- parseTree
+  -- Spec.main
+  parseTree
   -- runGroupBy
   return ()
 
@@ -36,7 +39,9 @@ parseTree = do
         \[[adsfasdf]]"
   let s = "\tasdf\t"
   let s = "a𐐀b"
-  case Markdown.Parsing.parseCST "<none>" s of
+  let s = [r|- ![oh](../..)
+- another one|]
+  case Markdown.Parsing.parseAST "<none>" s of
     Left e -> error $ show e
     Right bs -> pPrint bs
 

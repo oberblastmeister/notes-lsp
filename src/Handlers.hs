@@ -23,13 +23,13 @@ import qualified Language.LSP.Types.Lens as LSP
 import qualified Language.LSP.VFS as VFS
 import MyPrelude
 import qualified Path
-import qualified Path.IO as PIO
 import ReactorMsg
 import qualified Relude.Unsafe as Unsafe
 import State (ServerM, ServerM', ServerState)
 import qualified State
 import System.Log.Logger (debugM, errorM)
 import Utils (forMaybeM)
+import qualified Utils
 
 type Handler a = Server.Handler ServerM a
 
@@ -287,7 +287,7 @@ initializeState rChan maybeRoot folders = do
 
 initializeState' :: TQueue ServerState -> Path Abs Dir -> IO ()
 initializeState' stChan root = do
-  (_, files) <- PIO.listDirRecur root
+  files <- Utils.listDirFilesIgnore root
   mdFiles <-
     filterM
       ( \file ->
@@ -310,8 +310,7 @@ initializeState' stChan root = do
                 Left e -> pure Nothing
                 Right noteId -> pure $ Just noteId
           liftIO $ debugM "handlers" ("Got noteIds" ++ show noteIds)
-          forM_ noteIds $ \noteId -> do
-            State.updateNoteGraph noteId
+          forM_ noteIds State.updateNoteGraph
       )
       State.def
   atomically $ STM.writeTQueue stChan st

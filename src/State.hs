@@ -27,6 +27,7 @@ import qualified Markdown.Parsing
 import MyPrelude
 import qualified Relude.Unsafe as Unsafe
 import qualified System.FilePath as FilePath
+import qualified Text.Show
 
 newtype ServerM a = ServerM {unServer :: ReaderT (IORef ServerState) (LspM Config) a}
   deriving
@@ -79,7 +80,13 @@ data ServerState = ServerState
     -- amount of notes
     size :: !Int
   }
-  deriving (Show, Generic)
+  deriving (Generic)
+
+instance Show ServerState where
+  show ServerState {pathToNote, nameToNote, noteGraph} =
+    Text.Show.show pathToNote
+      ++ Text.Show.show nameToNote
+      ++ Text.Show.show noteGraph
 
 def :: ServerState
 def =
