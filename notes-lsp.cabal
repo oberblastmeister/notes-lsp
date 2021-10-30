@@ -37,8 +37,10 @@ library
       Markdown.Parsing
       Markdown.Tags
       MyPrelude
+      Note
       Proto
       Reactor
+      ReactorMsg
       State
       Utils
   other-modules:
@@ -91,9 +93,11 @@ library
     , commonmark-extensions
     , commonmark-pandoc
     , containers
+    , directory
     , dlist
     , exceptions
     , fgl
+    , filepath
     , foldl
     , generic-lens
     , hslogger
@@ -172,9 +176,11 @@ executable notes-lsp
     , commonmark-extensions
     , commonmark-pandoc
     , containers
+    , directory
     , dlist
     , exceptions
     , fgl
+    , filepath
     , foldl
     , generic-lens
     , hslogger
@@ -258,9 +264,11 @@ test-suite notes-lsp-test
     , commonmark-extensions
     , commonmark-pandoc
     , containers
+    , directory
     , dlist
     , exceptions
     , fgl
+    , filepath
     , foldl
     , generic-lens
     , hslogger

@@ -33,7 +33,6 @@ import qualified Language.LSP.Server as Server
 import qualified Language.LSP.Types as Handlers
 import qualified Language.LSP.Types as LSP
 import MyPrelude
-import Path (Dir, File, Rel, toFilePath, (</>))
 import qualified Path
 import qualified Path.IO as PIO
 import State (ServerM, ServerState)
@@ -41,6 +40,7 @@ import qualified State
 import qualified System.Exit as Exit
 import System.Log.Logger (debugM)
 import qualified System.Log.Logger as Logger
+import ReactorMsg
 
 main :: IO ()
 main = do
@@ -62,10 +62,9 @@ run = flip E.catches handlers $ do
                 Aeson.Error e -> Left (T.pack e)
                 Aeson.Success cfg -> Right cfg,
             doInitialize = \env _ -> do
-              Concurrent.forkIO $ initializeState stChan
               Concurrent.forkIO $ runReaderT (reactor stChan rChan) defSt
               pure $ Right env,
-            staticHandlers = lspHandlers rChan,
+            staticHandlers = lspHandlers stChan rChan,
             interpretHandler = \env -> Server.Iso (State.runServer defSt env) liftIO,
             options = lspOptions
           }
@@ -75,7 +74,7 @@ run = flip E.catches handlers $ do
     PIO.ensureDir logDir
     let logFile = logDir </> [Path.relfile|notes-lsp.log|]
     unlessM (PIO.doesFileExist logFile) $ TIO.writeFile (toFilePath logFile) ""
-    Server.setupLogger (Just $ toFilePath logFile) ["reactor"] Logger.DEBUG
+    Server.setupLogger (Just $ toFilePath logFile) ["reactor", "handlers"] Logger.DEBUG
     Server.runServer serverDefinition
   where
     handlers =
@@ -104,33 +103,14 @@ lspOptions =
       Server.completionTriggerCharacters = Just ['[', '#']
     }
 
-initializeState :: STM.TQueue ServerState -> IO ()
-initializeState stChan = do
-  return ()
-
 -- ---------------------------------------------------------------------
 
 -- The reactor is a process that serialises and buffers all requests from the
 -- LSP client, so they can be sent to the backend compiler one at a time, and a
 -- reply sent.
 
-data ReactorMsg
-  = ReactorMsgAct ReactorAct
-  | ReactorMsgInitState ServerState
-
-data ReactorAct = ReactorAct
-  { act :: ServerM (),
-    env :: Config.LanguageContextEnv
-  }
-
 select :: MonadIO m => [STM a] -> m a
 select = liftIO . STM.atomically . Monad.msum
-
-type MonadReactor :: (* -> *) -> Constraint
-
-type MonadReactor m = (MonadReader (IORef ServerState) m, MonadIO m)
-
-type ReactorM = ReaderT (IORef ServerState) IO ()
 
 -- | The single point that all events flow through, allowing management of state
 -- to stitch replies and requests together from the two asynchronous sides: lsp
@@ -153,14 +133,15 @@ reactor' stChan rChan = do
         State.runServer st env act
       ReactorMsgInitState newSt -> do
         st <- ask
+        liftIO $ debugM "reactor" ("Got st:\n"  ++ show newSt)
         liftIO $ IORef.writeIORef st newSt
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as
 -- input into the reactor
-lspHandlers :: TQueue ReactorAct -> Server.Handlers ServerM
-lspHandlers rin = Server.mapHandlers goReq goNot Handlers.allHandlers
+lspHandlers :: TQueue ServerState -> TQueue ReactorAct -> Server.Handlers ServerM
+lspHandlers stChan rChan = Server.mapHandlers goReq goNot (Handlers.allHandlers stChan rChan)
   where
-    send = liftIO . STM.atomically . STM.writeTQueue rin
+    send = liftIO . STM.atomically . STM.writeTQueue rChan
 
     goReq :: forall (a :: LSP.Method 'LSP.FromClient 'LSP.Request). Handlers.Handler a -> Handlers.Handler a
     goReq f = \msg k -> do

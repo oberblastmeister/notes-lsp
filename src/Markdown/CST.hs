@@ -26,8 +26,8 @@ inLineHolder = singleton . BlInlineHolder . toList
 blNull :: Blocks
 blNull = singleton BlNull
 
-note :: Blocks -> Inlines
-note = singleton . Note . toList
+ilBlockHolder :: Blocks -> Inlines
+ilBlockHolder = singleton . IlBlockHolder . toList
 
 addRange ::
   (Show a, HasCallStack) =>
@@ -46,12 +46,10 @@ type Block = (Block', Maybe Commonmark.SourceRange)
 data Block'
   = BlInlineHolder [Inline]
   | BlBlockHolder [Block]
-  | Heading Int [Inline]
   | -- | DefinitionList [([Inline], [Block])]
     BlNull
   deriving (Show, Eq, Generic)
 
--- instance Commonmark.IsBlock Inline Block where
 type Blocks = Seq Block
 
 instance Plated Block where
@@ -79,7 +77,7 @@ instance Commonmark.IsBlock Inlines Blocks where
 
   codeBlock _ _ = blNull
 
-  heading i il = singleton $ Heading i $ toList il
+  heading _ = inLineHolder
 
   rawBlock _ _ = blNull
 
@@ -101,7 +99,7 @@ instance Extensions.HasFootnote Inlines Blocks where
 
   footnoteList bls = bls ^.. each . each ^. to (singleton . BlBlockHolder)
 
-  footnoteRef _ _ = note
+  footnoteRef _ _ = ilBlockHolder
 
 -- instance Extensions.HasDefinitionList Inlines Blocks where
 -- definitionList _ = _
@@ -112,13 +110,13 @@ data Inline'
   = IlNull
   | IlInlineHolder [Inline]
   | IlWikiLink WikiLink
-  | Note [Block]
+  | IlBlockHolder [Block]
   deriving (Show, Eq, Generic)
 
 data WikiLink = WikiLink
-  { conn :: Connection,
-    url :: Text,
-    name :: Maybe Text
+  { conn :: !Connection,
+    dest :: !Text,
+    name :: !(Maybe Text)
   }
   deriving (Show, Eq, Generic)
 
@@ -201,4 +199,4 @@ instance Commonmark.HasAttributes Inlines where
   {-# INLINE addAttributes #-}
 
 instance Links.HasWikiLink Inlines where
-  wikilink conn (url, name) = singleton $ IlWikiLink $ WikiLink {conn, url, name}
+  wikilink conn (dest, name) = singleton $ IlWikiLink $ WikiLink {conn, dest, name}

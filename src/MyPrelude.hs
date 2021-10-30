@@ -7,11 +7,19 @@ module MyPrelude
     traceShowId,
     traceShowWith,
     traceShowM,
+    Path,
+    Abs,
+    Rel,
+    Dir,
+    File,
+    toFilePath,
+    (</>),
   )
 where
 
 import Data.Generics.Labels
 import qualified Debug.Trace as Debug
+import Path (Abs, Dir, File, Path, Rel, toFilePath, (</>))
 import Relude hiding (print, show, traceShow, traceShowId, traceShowM)
 import Text.Pretty.Simple
 

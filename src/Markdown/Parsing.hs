@@ -2,7 +2,8 @@ module Markdown.Parsing
   ( SyntaxSpec,
     SyntaxSpec',
     syntaxSpec,
-    parseMarkdown,
+    parseCST,
+    parseAST,
   )
 where
 
@@ -10,6 +11,8 @@ import Commonmark (ParseError)
 import qualified Commonmark
 import qualified Commonmark.Extensions
 import qualified Commonmark.Pandoc
+import Markdown.AST (AST)
+import qualified Markdown.AST as AST
 import qualified Markdown.CST as CST
 import qualified Markdown.Links as Links
 import MyPrelude
@@ -64,8 +67,8 @@ syntaxSpec =
       Links.wikiLinkSpec
     ]
 
-parseMarkdown :: FilePath -> Text -> Either ParseError [CST.Block]
-parseMarkdown path input = do
+parseCST :: FilePath -> Text -> Either ParseError [CST.Block]
+parseCST path input = do
   toList
     <$> runIdentity
       ( Commonmark.commonmarkWith
@@ -76,3 +79,6 @@ parseMarkdown path input = do
           path
           input
       )
+
+parseAST :: FilePath -> Text -> Either ParseError AST
+parseAST path input = AST.makeAST <$> parseCST path input

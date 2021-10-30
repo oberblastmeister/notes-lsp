@@ -45,6 +45,8 @@ dependencies:
   - generic-lens
   - path
   - path-io
+  - filepath
+  - directory
   - rope-utf16-splay
   - fgl
   - unliftio-core

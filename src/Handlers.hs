@@ -7,30 +7,38 @@ where
 
 import qualified Config
 import qualified Control.Concurrent as Concurrent
+import Control.Concurrent.STM (TQueue)
+import qualified Control.Concurrent.STM as STM
+import Control.Exception (try)
 import Control.Lens
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
+import qualified Data.Rope.UTF16 as Rope
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Language.LSP.Diagnostics as Diagnostics
 import qualified Language.LSP.Server as Server
 import qualified Language.LSP.Types as LSP
 import qualified Language.LSP.Types.Lens as LSP
 import qualified Language.LSP.VFS as VFS
 import MyPrelude
+import qualified Path
+import qualified Path.IO as PIO
+import ReactorMsg
 import qualified Relude.Unsafe as Unsafe
-import State (ServerM, ServerM')
+import State (ServerM, ServerM', ServerState)
 import qualified State
 import System.Log.Logger (debugM, errorM)
-import Data.Rope.UTF16 (Rope)
+import Utils (forMaybeM)
 
 type Handler a = Server.Handler ServerM a
 
 type Handlers = Server.Handlers ServerM
 
-allHandlers :: Handlers
-allHandlers =
+allHandlers :: TQueue ServerState -> TQueue ReactorAct -> Handlers
+allHandlers stChan rChan =
   mconcat
-    [ initialized,
+    [ initialized stChan,
       workspaceDidChangeConfiguration,
       textDocumentDidOpen,
       textDocumentDidChange,
@@ -60,9 +68,14 @@ sendDiagnostics fileUri version = do
         ]
   Server.publishDiagnostics 100 fileUri version (Diagnostics.partitionBySource diags)
 
-initialized :: Handlers
-initialized = notificationHandler LSP.SInitialized $ \_msg -> do
-  liftIO $ debugM "reactor.handle" "Processing the Initialized notification"
+initialized :: TQueue ServerState -> Handlers
+initialized stChan = notificationHandler LSP.SInitialized $ \_msg -> do
+  liftIO $ debugM "handlers" "Processing Initialized notification"
+
+  root <- Server.getRootPath <&> (>>= Path.parseAbsDir)
+  folders <- Server.getWorkspaceFolders
+  liftIO $ debugM "handlers" "Initializing state"
+  liftIO $ Concurrent.forkIO $ initializeState stChan root folders
 
   -- We're initialized! Lets send a showMessageRequest now
   let params =
@@ -73,7 +86,7 @@ initialized = notificationHandler LSP.SInitialized $ \_msg -> do
 
   void $
     Server.sendRequest LSP.SWindowShowMessageRequest params $ \case
-      Left e -> liftIO $ errorM "reactor.handle" $ "Got an error: " ++ show e
+      Left e -> liftIO $ errorM "handlers" $ "Got an error: " ++ show e
       Right _ -> do
         Server.sendNotification LSP.SWindowShowMessage $ LSP.ShowMessageParams LSP.MtInfo "Excellent choice"
 
@@ -84,7 +97,7 @@ initialized = notificationHandler LSP.SInitialized $ \_msg -> do
 
         void $
           Server.registerCapability LSP.STextDocumentCodeLens regOpts $ \_req responder -> do
-            liftIO $ debugM "reactor.handle" "Processing a textDocument/codeLens request"
+            liftIO $ debugM "handlers" "Processing a textDocument/codeLens request"
             let cmd = LSP.Command "Say hello" "lsp-hello-command" Nothing
                 rsp = LSP.List [LSP.CodeLens (LSP.mkRange 0 0 0 100) (Just cmd) Nothing]
             responder (Right rsp)
@@ -100,7 +113,7 @@ textDocumentDidOpen :: Handlers
 textDocumentDidOpen = notificationHandler LSP.STextDocumentDidOpen $ \msg -> do
   let doc = msg ^. LSP.params . LSP.textDocument . LSP.uri
       fileName = LSP.uriToFilePath doc
-  liftIO $ debugM "reactor.handle" $ "Processing DidOpenTextDocument for: " ++ show fileName
+  liftIO $ debugM "handlers" $ "Processing DidOpenTextDocument for: " ++ show fileName
   sendDiagnostics (LSP.toNormalizedUri doc) (Just 0)
 
 textDocumentDidChange :: Handlers
@@ -111,26 +124,26 @@ textDocumentDidChange = notificationHandler LSP.STextDocumentDidChange $ \msg ->
             . LSP.textDocument
             . LSP.uri
             . to LSP.toNormalizedUri
-  liftIO $ debugM "reactor.handle" $ "Processing DidChangeTextDocument for: " ++ show doc
+  liftIO $ debugM "handlers" $ "Processing DidChangeTextDocument for: " ++ show doc
   mdoc <- Server.getVirtualFile doc
   case mdoc of
     Just doc@(VFS.VirtualFile _version str _) -> do
       liftIO $ do
-        debugM "reactor.handle" $ "Found the virtual file: " ++ show str
-        debugM "reactor.handle" $ "Virtual file text: " ++ show (VFS.virtualFileText doc)
+        debugM "handlers" $ "Found the virtual file: " ++ show str
+        debugM "handlers" $ "Virtual file text: " ++ show (VFS.virtualFileText doc)
     Nothing -> do
-      liftIO $ debugM "reactor.handle" $ "Didn't find anything in the VFS for: " ++ show doc
+      liftIO $ debugM "handlers" $ "Didn't find anything in the VFS for: " ++ show doc
 
 textDocumentDidSave :: Handlers
 textDocumentDidSave = notificationHandler LSP.STextDocumentDidSave $ \msg -> do
   let doc = msg ^. LSP.params . LSP.textDocument . LSP.uri
       fileName = LSP.uriToFilePath doc
-  liftIO $ debugM "reactor.handle" $ "Processing DidSaveTextDocument  for: " ++ show fileName
+  liftIO $ debugM "handlers" $ "Processing DidSaveTextDocument  for: " ++ show fileName
   sendDiagnostics (LSP.toNormalizedUri doc) Nothing
 
 textDocumentDidRename :: Handlers
 textDocumentDidRename = requestHandler LSP.STextDocumentRename $ \req responder -> do
-  liftIO $ debugM "reactor.handle" "Processing a textDocument/rename request"
+  liftIO $ debugM "handlers" "Processing a textDocument/rename request"
   let params = req ^. LSP.params
       LSP.Position l c = params ^. LSP.position
       newName = params ^. LSP.newName
@@ -144,7 +157,7 @@ textDocumentDidRename = requestHandler LSP.STextDocumentRename $ \req responder 
 
 textDocumentDidHover :: Handlers
 textDocumentDidHover = requestHandler LSP.STextDocumentHover $ \req responder -> do
-  liftIO $ debugM "reactor.handle" "Processing a textDocument/hover request"
+  liftIO $ debugM "handlers" "Processing a textDocument/hover request"
   let LSP.HoverParams _doc pos _workDone = req ^. LSP.params
       LSP.Position _l _c' = pos
       rsp = LSP.Hover ms (Just range)
@@ -154,7 +167,7 @@ textDocumentDidHover = requestHandler LSP.STextDocumentHover $ \req responder ->
 
 textDocumentSymbol :: Handlers
 textDocumentSymbol = requestHandler LSP.STextDocumentDocumentSymbol $ \req responder -> do
-  liftIO $ debugM "reactor.handle" "Processing a textDocument/documentSymbol request"
+  liftIO $ debugM "handlers" "Processing a textDocument/documentSymbol request"
   let LSP.DocumentSymbolParams _ _ doc = req ^. LSP.params
       loc = LSP.Location (doc ^. LSP.uri) (LSP.Range (LSP.Position 0 0) (LSP.Position 0 0))
       sym = LSP.SymbolInformation "lsp-hello" LSP.SkFunction Nothing Nothing loc Nothing
@@ -163,7 +176,7 @@ textDocumentSymbol = requestHandler LSP.STextDocumentDocumentSymbol $ \req respo
 
 textDocumentCodeAction :: Handlers
 textDocumentCodeAction = requestHandler LSP.STextDocumentCodeAction $ \req responder -> do
-  liftIO $ debugM "reactor.handle" "Processing a textDocument/codeAction request"
+  liftIO $ debugM "handlers" "Processing a textDocument/codeAction request"
   let params = req ^. LSP.params
       doc = params ^. LSP.textDocument
       (LSP.List diags) = params ^. LSP.context . LSP.diagnostics
@@ -186,11 +199,11 @@ textDocumentCodeAction = requestHandler LSP.STextDocumentCodeAction $ \req respo
 
 workspaceExecuteCommand :: Handlers
 workspaceExecuteCommand = requestHandler LSP.SWorkspaceExecuteCommand $ \req responder -> do
-  liftIO $ debugM "reactor.handle" "Processing a workspace/executeCommand request"
+  liftIO $ debugM "handlers" "Processing a workspace/executeCommand request"
   let params = req ^. LSP.params
       margs = params ^. LSP.arguments
 
-  liftIO $ debugM "reactor.handle" $ "The arguments are: " ++ show margs
+  liftIO $ debugM "handlers" $ "The arguments are: " ++ show margs
   responder (Right (Aeson.Object mempty)) -- respond to the request
   void $
     Server.withProgress "Executing some long running command" Server.Cancellable $ \update ->
@@ -205,7 +218,7 @@ textDocumentCompletion = requestHandler LSP.STextDocumentCompletion $ \req respo
   -- prefix <- VFS.getCompletionPrefix Position VirtualFile
   vf <- Server.getVirtualFile uri <&> Unsafe.fromJust
 
-  -- liftIO $ debugM "reactor.handle" $ show params
+  -- liftIO $ debugM "handlers" $ show params
   let items =
         LSP.List $
           fmap
@@ -263,3 +276,42 @@ requestHandler smethod fn = do
     let k' = State.toServer' . k
     let act = fn msg k'
     void $ liftIO $ Concurrent.forkIO $ State.runServer' st env act
+
+initializeState :: TQueue ServerState -> Maybe (Path Abs Dir) -> Maybe [LSP.WorkspaceFolder] -> IO ()
+initializeState rChan maybeRoot folders = do
+  liftIO $ debugM "handlers" ("root " ++ show maybeRoot)
+  liftIO $ debugM "handlers" ("folders " ++ show folders)
+  case maybeRoot of
+    Just root -> initializeState' rChan root
+    Nothing -> pure ()
+
+initializeState' :: TQueue ServerState -> Path Abs Dir -> IO ()
+initializeState' stChan root = do
+  (_, files) <- PIO.listDirRecur root
+  mdFiles <-
+    filterM
+      ( \file ->
+          try @SomeException (Path.fileExtension file)
+            <&> rightToMaybe
+            <&> fmap (== ".md")
+            <&> fromMaybe False
+      )
+      files
+  st <-
+    execStateT
+      ( do
+          noteIds <- forMaybeM mdFiles $ \mdFile -> do
+            contents <- liftIO $ TIO.readFile $ toFilePath mdFile
+            let rope = Rope.fromText contents
+            let nPath = LSP.toNormalizedFilePath $ toFilePath $ mdFile
+            runExceptT
+              (State.addPath nPath contents rope)
+              >>= \case
+                Left e -> pure Nothing
+                Right noteId -> pure $ Just noteId
+          liftIO $ debugM "handlers" ("Got noteIds" ++ show noteIds)
+          forM_ noteIds $ \noteId -> do
+            State.updateGraph noteId
+      )
+      State.def
+  atomically $ STM.writeTQueue stChan st

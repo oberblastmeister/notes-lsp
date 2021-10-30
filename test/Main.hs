@@ -36,7 +36,7 @@ parseTree = do
         \[[adsfasdf]]"
   let s = "\tasdf\t"
   let s = "a𐐀b"
-  case Markdown.Parsing.parseMarkdown "<none>" s of
+  case Markdown.Parsing.parseCST "<none>" s of
     Left e -> error $ show e
     Right bs -> pPrint bs
 

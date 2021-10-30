@@ -2,6 +2,24 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "install",
+            "type": "process",
+            "command": "stack",
+            "args": [
+                "install"
+            ],
+            "group": "build",
+        },
+        {
+            "label": "build",
+            "type": "process",
+            "command": "stack",
+            "args": [
+                "build"
+            ],
+            "group": "build",
+        },
+        {
             "label": "project repl",
             "type": "shell",
             "command": "ghcid --target='notes-lsp:exe:notes-lsp'",
