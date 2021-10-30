@@ -4,7 +4,7 @@ import Commonmark (ParseError)
 import Config (Config, LanguageContextEnv)
 import qualified Control.Lens as L
 import Control.Lens.Operators
-import Control.Monad.Except (MonadError)
+import Control.Monad.Except (MonadError, liftEither)
 import Control.Monad.IO.Unlift (MonadUnliftIO)
 import qualified Data.Graph.Inductive as Graph
 import Data.Graph.Inductive.PatriciaTree (Gr)
@@ -12,14 +12,21 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.IORef as IORef
 import qualified Data.IntMap.Strict as IntMap
 import Data.Rope.UTF16 (Rope)
+import qualified Data.Rope.UTF16 as Rope
+-- import Note (Note, getName, new)
+
+import qualified Data.Text as T
 import Language.LSP.Server (LspM)
 import qualified Language.LSP.Server as Server
 import qualified Language.LSP.Types as LSP
+import LineIndex (LineIndex, new)
+import Markdown.AST (AST)
 import qualified Markdown.AST as AST
 import Markdown.Connection (Connection)
+import qualified Markdown.Parsing
 import MyPrelude
-import Note (Note, getName, new)
 import qualified Relude.Unsafe as Unsafe
+import qualified System.FilePath as FilePath
 
 newtype ServerM a = ServerM {unServer :: ReaderT (IORef ServerState) (LspM Config) a}
   deriving
@@ -69,6 +76,7 @@ data ServerState = ServerState
     nameToNote :: HashMap Text Int,
     notes :: IntMap Note,
     noteGraph :: Gr () Connection,
+    -- amount of notes
     size :: !Int
   }
   deriving (Show, Generic)
@@ -83,57 +91,81 @@ def =
       size = 0
     }
 
-addNote :: MonadState ServerState m => Note -> m Int
-addNote note = do
-  newId <- L.use #size
-  #notes . L.at newId ?= note
-  #size += 1
-  pure newId
+combine :: ServerState -> ServerState -> ServerState
+combine st st' = do
+  execState
+    ( do
+        noteIds <- forM (st' ^.. #notes . L.each) updateNote
+        forM_ noteIds updateNoteGraph
+    )
+    st
 
--- newtype NoteId = NoteId {unNoteId :: Int} deriving (Show, Eq, Ord)
+data Note = Note
+  { ast :: AST,
+    rope :: Rope,
+    name :: Text,
+    path :: LSP.NormalizedFilePath,
+    lineIndex :: LineIndex,
+    id :: Int
+  }
+  deriving (Show, Generic)
 
-getNote :: (MonadState ServerState m) => Int -> m Note
-getNote noteId = L.use (#notes . L.at noteId . L.to Unsafe.fromJust)
-
-addPath ::
-  (MonadState ServerState m, MonadError ParseError m) =>
-  LSP.NormalizedFilePath ->
-  Text ->
-  Rope ->
-  m Int
-addPath nPath text rope = do
-  let path = LSP.fromNormalizedFilePath nPath
-  let name = Note.getName path
-  newNote <- Note.new nPath text rope
+updateNote :: MonadState ServerState m => Note -> m Int
+updateNote note = do
+  let nPath = note ^. #path
+      name = note ^. #name
   maybeId <- L.use (#pathToNote . L.at nPath)
   noteId <- case maybeId of
-    Nothing -> addNote newNote
+    Nothing -> do
+      newId <- L.use #size
+      #notes . L.at newId ?= (note & #id .~ newId)
+      #size += 1
+      pure newId
     Just it -> do
-      #notes . L.at it ?= newNote
+      #notes . L.at it ?= (note & #id .~ it)
       pure it
   #nameToNote . L.at name ?= noteId
   #pathToNote . L.at nPath ?= noteId
   #noteGraph %= Graph.insNode (noteId, ())
   pure noteId
 
-changePath ::
+getNote :: (MonadState ServerState m) => Int -> m Note
+getNote noteId = L.use (#notes . L.at noteId . L.to Unsafe.fromJust)
+
+getName :: FilePath -> Text
+getName = T.pack . FilePath.dropExtension . FilePath.takeFileName
+
+newNote ::
+  (MonadState ServerState m, MonadError ParseError m) =>
+  LSP.NormalizedFilePath ->
+  Text ->
+  Rope ->
+  m Int
+newNote nPath text rope = do
+  let path = LSP.fromNormalizedFilePath nPath
+      name = getName path
+      lineIndex = LineIndex.new text
+  ast <- liftEither $ Markdown.Parsing.parseAST path text
+  let note = Note {ast, rope, name, path = nPath, lineIndex, id = error "id not initialized yet"}
+  updateNote note
+
+changeNote ::
   (MonadState ServerState m, MonadError ParseError m) =>
   LSP.NormalizedFilePath ->
   Text ->
   Rope ->
   m ()
-changePath nPath text rope = do
-  noteId <- addPath nPath text rope
-  updateGraph noteId
+changeNote nPath text rope = do
+  noteId <- newNote nPath text rope
+  updateNoteGraph noteId
 
-updateGraph :: (MonadState ServerState m) => Int -> m ()
-updateGraph noteId = do
+updateNoteGraph :: (MonadState ServerState m) => Int -> m ()
+updateNoteGraph noteId = do
   note <- getNote noteId
-  let name = note ^. #name
   forM_ (note ^. #ast) $ \(astElement, _sp) -> case astElement of
     AST.LinkElement link -> do
       whenJustM
-        (L.use (#nameToNote . L.at name))
+        (L.use (#nameToNote . L.at (link ^. #dest)))
         ( \toId -> do
             #noteGraph %= Graph.insEdge (noteId, toId, link ^. #conn)
         )

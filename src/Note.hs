@@ -14,7 +14,7 @@ import qualified System.FilePath as FilePath
 
 data Note = Note
   { ast :: AST,
-    contents :: Rope,
+    rope :: Rope,
     name :: Text,
     path :: NormalizedFilePath,
     lineIndex :: LineIndex
@@ -27,7 +27,7 @@ new nPath text rope = do
       path = LSP.fromNormalizedFilePath nPath
       name = getName path
   ast <- liftEither $ Markdown.Parsing.parseAST path text
-  pure $ Note {ast, contents = rope, name, path = nPath, lineIndex}
+  pure $ Note {ast, rope, name, path = nPath, lineIndex}
 
 getName :: FilePath -> Text
 getName = T.pack . FilePath.dropExtension . FilePath.takeFileName

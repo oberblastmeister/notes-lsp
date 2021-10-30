@@ -35,12 +35,12 @@ import qualified Language.LSP.Types as LSP
 import MyPrelude
 import qualified Path
 import qualified Path.IO as PIO
+import ReactorMsg
 import State (ServerM, ServerState)
 import qualified State
 import qualified System.Exit as Exit
 import System.Log.Logger (debugM)
 import qualified System.Log.Logger as Logger
-import ReactorMsg
 
 main :: IO ()
 main = do
@@ -133,8 +133,8 @@ reactor' stChan rChan = do
         State.runServer st env act
       ReactorMsgInitState newSt -> do
         st <- ask
-        liftIO $ debugM "reactor" ("Got st:\n"  ++ show newSt)
-        liftIO $ IORef.writeIORef st newSt
+        liftIO $ debugM "reactor" ("Got st:\n" ++ show newSt)
+        liftIO $ IORef.modifyIORef st (`State.combine` newSt)
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as
 -- input into the reactor

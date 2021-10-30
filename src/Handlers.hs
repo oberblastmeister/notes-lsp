@@ -305,13 +305,13 @@ initializeState' stChan root = do
             let rope = Rope.fromText contents
             let nPath = LSP.toNormalizedFilePath $ toFilePath $ mdFile
             runExceptT
-              (State.addPath nPath contents rope)
+              (State.newNote nPath contents rope)
               >>= \case
                 Left e -> pure Nothing
                 Right noteId -> pure $ Just noteId
           liftIO $ debugM "handlers" ("Got noteIds" ++ show noteIds)
           forM_ noteIds $ \noteId -> do
-            State.updateGraph noteId
+            State.updateNoteGraph noteId
       )
       State.def
   atomically $ STM.writeTQueue stChan st
