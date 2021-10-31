@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: build
+    name: Build
 
     strategy:
       fail-fast: false

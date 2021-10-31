@@ -1,0 +1,57 @@
+name: nightly
+
+on:
+  push:
+    branches:
+      - trigger-nightly
+
+jobs:
+  nightly:
+    name: Nightly
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout respository
+        uses: actions/checkout@v2
+
+      - name: Setup haskell
+        uses: haskell/actions/setup@v1
+        with:
+          ghc-version: "8.10.7"
+          enable-stack: true
+          stack-version: "latest"
+
+      - name: Cache stack
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-stack
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Build binary
+        run: |
+          mkdir dist
+          stack install --local-bin-path dist
+
+      - uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: nightly
+          prerelease: true
+          title: Nightly
+          files: |
+            dist/notes-lsp

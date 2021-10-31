@@ -1,4 +1,3 @@
-# haskell-lsp-hello
-apdosfiuasdf
-thist hist 
+# notes-lsp
 
+A language server for taking notes
