@@ -6,6 +6,7 @@ module Data.Range
     _start,
     _end,
     tuple,
+    contains,
   )
 where
 
@@ -82,3 +83,10 @@ new start end =
 
 length :: Range -> Int
 length Range {start, end} = end - start
+
+contains :: Range -> Range -> Bool
+contains Range {start, end} Range {start = start', end = end'} =
+  start <= start' && end < end'
+  
+-- fromLSP :: LSP.Position -> Range
+-- fromLSP pos -> 

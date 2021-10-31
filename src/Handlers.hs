@@ -154,6 +154,12 @@ textDocumentDidRename = requestHandler LSP.STextDocumentRename $ \req responder 
       -- "documentChanges" field is preferred over "changes"
       rsp = LSP.WorkspaceEdit Nothing (Just (LSP.List [LSP.InL tde])) Nothing
   responder (Right rsp)
+  
+-- textDocumentDefinition :: Handlers
+-- textDocumentDefinition = requestHandler LSP.STextDocumentDefinition $ \req responder -> do
+--   liftIO $ debugM "handlers" "Processing a textDocument/definition request"
+--   let LSP.DefinitionParams doc pos _ _ = req ^. LSP.params
+--   _
 
 textDocumentDidHover :: Handlers
 textDocumentDidHover = requestHandler LSP.STextDocumentHover $ \req responder -> do

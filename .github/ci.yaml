@@ -1,0 +1,47 @@
+name: ci
+
+# Trigger the workflow on push or pull request, but only for the main branch
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout respository
+        uses: actions/checkout@v2
+
+      - name: Setup haskell
+        uses: haskell/actions/setup@v1
+        with:
+          ghc-version: "8.10.7"
+          enable-stack: true
+          stack-version: "latest"
+
+      - name: Cache stack
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-stack
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/stack.yaml.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks --only-dependencies
+
+      - name: Build
+        run: |
+          stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
+
+      - name: Test
+        run: |
+          stack test --system-ghc

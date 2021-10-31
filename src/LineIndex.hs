@@ -89,6 +89,14 @@ instance SingEncodingKind 'Utf16 where
 instance SingEncodingKind 'Char where
   sing = SChar
 
+data LineColRange a = LineColRange
+  { start :: !(LineCol a),
+    end :: !(LineCol a)
+  }
+  
+-- contains :: LineColRange a -> LineColRange a -> Bool
+-- contains LineColRange {}
+
 -- | Returns the index of the partition point according to the given predicate
 -- | (the index of the first element of the second partition).
 partitionPoint :: V.Vector v a => (a -> Bool) -> v a -> Int
