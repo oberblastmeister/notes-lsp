@@ -3,6 +3,7 @@ module Utils
     forMaybe,
     forMaybeM,
     listDirFilesIgnore,
+    findUntil,
   )
 where
 
@@ -11,6 +12,14 @@ import qualified Path.IO as PIO
 
 scanl'' :: (b -> a -> b) -> b -> [a] -> [b]
 scanl'' f z = drop 1 . scanl' f z
+
+findUntil :: (a -> Bool) -> [a] -> Maybe a
+findUntil fn list = case list of
+  [] -> Nothing
+  (hd : tl) -> go hd fn tl
+  where
+    go _prev _f [] = Nothing
+    go prev f (x : xs) = if f x then Just prev else go x f xs
 
 forMaybe :: [a] -> (a -> Maybe b) -> [b]
 forMaybe = flip mapMaybe

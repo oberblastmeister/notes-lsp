@@ -7,7 +7,9 @@ import Control.Lens.Operators
 import qualified Data.ByteString as Bytestring
 import qualified Data.Char as Char
 import qualified Data.IntMap as IntMap
+import qualified Data.List.NonEmpty as NE
 import qualified Data.List.Split as Split
+import qualified Data.Maybe as Unsafe
 import Data.Range (Range (RangeV))
 import qualified Data.Range as Range
 import qualified Data.Text as T
@@ -15,7 +17,7 @@ import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Unboxed as VU
 import MyPrelude
-import Utils (scanl'')
+import Utils (findUntil, scanl'')
 
 type Offset :: IndexKind -> *
 newtype Offset a = Offset {unOffset :: Int}
@@ -48,6 +50,7 @@ data LineIndex = LineIndex
     -- First one is always zero
     newLines :: !(VU.Vector Int),
     -- List of non-ASCII characters on each line, zero-based
+    -- Each non-ASCII character is a utf8 range
     nonAscii :: !(IntMap (VU.Vector Utf8Range))
   }
   deriving (Show, Eq, Generic)
@@ -93,7 +96,7 @@ data LineColRange a = LineColRange
   { start :: !(LineCol a),
     end :: !(LineCol a)
   }
-  
+
 -- contains :: LineColRange a -> LineColRange a -> Bool
 -- contains LineColRange {}
 
@@ -200,6 +203,9 @@ new =
 
     lineIndexFromData = Fold.fold (LineIndex <$> newLinesFold <*> utf16LinesFold)
 
+numLines :: LineIndex -> Int
+numLines = (^. #newLines . L.to VU.length)
+
 -- | offset is in utf8
 lineCol :: Utf8Offset -> LineIndex -> Utf8LineCol
 lineCol offset lineIndex = LineCol {line, col = col}
@@ -219,19 +225,45 @@ lineColToUtf8 LineCol {line, col} lineIndex = LineCol {line, col = utf8ToUtf16Co
 lineColToUtf16 :: Utf16LineCol -> LineIndex -> Utf8LineCol
 lineColToUtf16 LineCol {line, col} lineIndex = LineCol {line, col = utf16ToUtf8Col line col lineIndex}
 
+-- utf8ToCharCol :: Int -> Int -> LineIndex -> Int
+-- utf8ToCharCol line col lineIndex = _
+
+-- withUtf16Col :: [Range] -> [(Int, Range)]
+-- withUtf16Col rs = scanl'' (\(prev, _) r -> )
+withDiffAccum :: [Range] -> [(Int, Range)]
+withDiffAccum = scanl'' (\(!prev, _) r -> (prev + lenDiff r, r)) (0, error "")
+
 utf16ToUtf8Col :: Int -> Int -> LineIndex -> Int
 utf16ToUtf8Col line col lineIndex =
   ( lineIndex ^. #nonAscii . L.at line & L._Just
       %~ ( (^.. L.each)
-             >>> map (\r -> (r, lenDiff r))
-             >>> scanl' (\t (r, diff) -> (r, diff, t ^. L._3' + diff)) (error "", error "", 0)
-             >>> drop 1
-             >>> takeWhile (\t -> col <= t ^. L._1 . Range._end)
-             >>> map (^. L._2)
-             >>> foldl' (+) col
+             >>> withDiffAccum
+             >>> traceShowId
+             >>> takeWhile (\(diff, RangeV _start end) -> end - diff <= col)
+             >>> NE.fromList
+             >>> last
+             >>> (^. L._1 . L.to (col +))
+             --  >>> scanl'' (\(_, _, !col') r -> (r, col', col' + lenDiff r)) (error "", error "", col)
+             --  >>> takeWhile (\t -> t ^. L._2 > t ^. L._1 . Range._start)
+             --  >>> NE.fromList
+             --  >>> last
+             --  >>> (^. L._3)
          )
   )
     ^. L.non col
+
+-- utf16ToUtf8Col :: Int -> Int -> LineIndex -> Int
+-- utf16ToUtf8Col line col lineIndex =
+--   ( lineIndex ^. #nonAscii . L.at line & L._Just
+--       %~ ( (^.. L.each)
+--              >>> scanl'' (\(_, _, !col') r -> (r, col', col' + lenDiff r)) (error "", error "", col)
+--              >>> takeWhile (\t -> t ^. L._2 > t ^. L._1 . Range._start)
+--              >>> NE.fromList
+--              >>> last
+--              >>> (^. L._3)
+--          )
+--   )
+--     ^. L.non col
 
 utf8ToUtf16Col :: Int -> Int -> LineIndex -> Int
 utf8ToUtf16Col line col lineIndex =

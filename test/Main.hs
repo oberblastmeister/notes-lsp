@@ -18,8 +18,8 @@ import Text.RawString.QQ
 main :: IO ()
 main = do
   -- runIndexSet
-  -- Spec.main
-  parseTree
+  Spec.main
+  -- parseTree
   -- runGroupBy
   return ()
 
