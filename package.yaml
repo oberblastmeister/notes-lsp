@@ -24,6 +24,8 @@ dependencies:
   - relude
   - transformers
   - mtl
+  - unliftio-core
+  - unliftio
   - unordered-containers
   - containers
   - vector
@@ -49,8 +51,6 @@ dependencies:
   - directory
   - rope-utf16-splay
   - fgl
-  - unliftio-core
-  - exceptions
   - megaparsec
   - parsec
   - split

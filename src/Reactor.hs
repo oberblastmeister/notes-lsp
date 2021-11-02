@@ -19,14 +19,10 @@ import qualified Control.Concurrent as Concurrent
 -- import qualified Control.Monad.STM as STM
 
 -- import qualified Control.Monad.STM as STM
-import Control.Concurrent.STM (TQueue)
-import qualified Control.Concurrent.STM as STM
-import qualified Control.Exception as E
-import qualified Control.Exception as Exception
+
 import Control.Lens
 import qualified Control.Monad as Monad
 import qualified Data.Aeson as Aeson
-import qualified Data.IORef as IORef
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Handlers
@@ -42,6 +38,11 @@ import qualified State
 import qualified System.Exit as Exit
 import System.Log.Logger (debugM, errorM)
 import qualified System.Log.Logger as Logger
+import qualified UnliftIO.Exception as E
+import qualified UnliftIO.Exception as Exception
+import UnliftIO.IORef as IORef
+import UnliftIO.STM (TQueue)
+import qualified UnliftIO.STM as STM
 
 main :: IO ()
 main = do
@@ -70,7 +71,7 @@ run = flip E.catches handlers $ do
             options = lspOptions
           }
   Exception.finally
-    ( Exception.catch @SomeException
+    ( Exception.catchAny
         ( do
             setupLogger
             Server.runServer serverDefinition
@@ -122,7 +123,7 @@ lspOptions =
 -- reply sent.
 
 select :: MonadIO m => [STM a] -> m a
-select = liftIO . STM.atomically . Monad.msum
+select = STM.atomically . Monad.msum
 
 -- | The single point that all events flow through, allowing management of state
 -- to stitch replies and requests together from the two asynchronous sides: lsp
@@ -146,14 +147,14 @@ reactor' stChan rChan = do
       ReactorMsgInitState newSt -> do
         st <- ask
         liftIO $ debugM "reactor" ("Got st:\n" ++ show newSt)
-        liftIO $ IORef.writeIORef st newSt
+        IORef.writeIORef st newSt
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as
 -- input into the reactor
 lspHandlers :: TQueue ServerState -> TQueue ReactorAct -> Server.Handlers ServerM
 lspHandlers stChan rChan = Server.mapHandlers goReq goNot (Handlers.allHandlers stChan rChan)
   where
-    send = liftIO . STM.atomically . STM.writeTQueue rChan
+    send = STM.atomically . STM.writeTQueue rChan
 
     goReq :: forall (a :: LSP.Method 'LSP.FromClient 'LSP.Request). Handlers.Handler a -> Handlers.Handler a
     goReq f = \msg k -> do

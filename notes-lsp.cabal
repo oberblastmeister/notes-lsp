@@ -98,7 +98,6 @@ library
     , containers
     , directory
     , dlist
-    , exceptions
     , fgl
     , filepath
     , foldl
@@ -123,6 +122,7 @@ library
     , stm
     , text
     , transformers
+    , unliftio
     , unliftio-core
     , unordered-containers
     , vector
@@ -182,7 +182,6 @@ executable notes-lsp
     , containers
     , directory
     , dlist
-    , exceptions
     , fgl
     , filepath
     , foldl
@@ -208,6 +207,7 @@ executable notes-lsp
     , stm
     , text
     , transformers
+    , unliftio
     , unliftio-core
     , unordered-containers
     , vector
@@ -272,7 +272,6 @@ test-suite notes-lsp-test
     , containers
     , directory
     , dlist
-    , exceptions
     , fgl
     , filepath
     , foldl
@@ -300,6 +299,7 @@ test-suite notes-lsp-test
     , stm
     , text
     , transformers
+    , unliftio
     , unliftio-core
     , unordered-containers
     , vector

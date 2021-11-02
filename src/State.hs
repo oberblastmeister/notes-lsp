@@ -9,12 +9,9 @@ import Control.Monad.IO.Unlift (MonadUnliftIO)
 import qualified Data.Graph.Inductive as Graph
 import Data.Graph.Inductive.PatriciaTree (Gr)
 import qualified Data.HashMap.Strict as HashMap
-import qualified Data.IORef as IORef
+import qualified UnliftIO.IORef as IORef
 import qualified Data.IntMap.Strict as IntMap
 import Data.Rope.UTF16 (Rope)
-import qualified Data.Rope.UTF16 as Rope
--- import Note (Note, getName, new)
-
 import qualified Data.Text as T
 import Language.LSP.Server (LspM)
 import qualified Language.LSP.Server as Server
@@ -53,11 +50,11 @@ type ServerM' = ReaderT ServerState (LspM Config)
 instance MonadState ServerState ServerM where
   get = do
     ref <- ask
-    liftIO $ IORef.readIORef ref
+    IORef.readIORef ref
 
   put a = do
     ref <- ask
-    liftIO $ IORef.writeIORef ref a
+    IORef.writeIORef ref a
 
 runServer :: MonadIO m => IORef ServerState -> Config.LanguageContextEnv -> ServerM a -> m a
 runServer st env m = unServer m & (`runReaderT` st) & Server.runLspT env & liftIO
@@ -68,7 +65,7 @@ runServer' st env m = runReaderT m st & Server.runLspT env & liftIO
 toServer' :: ServerM a -> ServerM' a
 toServer' m = do
   st <- ask
-  stRef <- liftIO $ IORef.newIORef st
+  stRef <- IORef.newIORef st
   env <- Server.getLspEnv
   runServer stRef env m
 
