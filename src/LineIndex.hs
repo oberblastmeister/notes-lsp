@@ -238,7 +238,6 @@ utf16ToUtf8Col line col lineIndex =
   ( lineIndex ^. #nonAscii . L.at line & L._Just
       %~ ( (^.. L.each)
              >>> withDiffAccum
-             >>> traceShowId
              >>> takeWhile (\(diff, RangeV _start end) -> end - diff <= col)
              >>> NE.fromList
              >>> last
@@ -276,13 +275,22 @@ utf8ToUtf16Col line col lineIndex =
   )
     ^. L.non col
 
-charToUtf16Col :: Int -> Int -> LineIndex -> Int
-charToUtf16Col line col lineIndex =
+charToColWith :: (Range -> Int) -> Int -> Int -> LineIndex -> Int
+charToColWith rangeFn line col lineIndex =
   ( lineIndex ^. #nonAscii . L.at line & L._Just
       %~ ( (^.. L.each)
              >>> take col
-             >>> map utf16Len
+             >>> map rangeFn
              >>> sum
          )
   )
     ^. L.non col
+
+charToUtf16Col :: Int -> Int -> LineIndex -> Int
+charToUtf16Col = charToColWith utf16Len
+
+charToUtf8Col :: Int -> Int -> LineIndex -> Int
+charToUtf8Col = charToColWith utf8Len
+
+-- lineColToOffsetWith :: (Range -> Int) -> LineCol a -> LineIndex
+-- lineColToOffsetWith =

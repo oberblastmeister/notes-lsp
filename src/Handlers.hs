@@ -11,9 +11,12 @@ import Control.Concurrent.STM (TQueue)
 import qualified Control.Concurrent.STM as STM
 import Control.Exception (try)
 import Control.Lens
+import qualified Control.Lens as L
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
+import qualified Data.Pos as Pos
 import qualified Data.Rope.UTF16 as Rope
+import qualified Data.Span as Span
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Language.LSP.Diagnostics as Diagnostics
@@ -21,8 +24,10 @@ import qualified Language.LSP.Server as Server
 import qualified Language.LSP.Types as LSP
 import qualified Language.LSP.Types.Lens as LSP
 import qualified Language.LSP.VFS as VFS
+import qualified Markdown.AST as AST
 import MyPrelude
 import qualified Path
+import qualified Proto
 import ReactorMsg
 import qualified Relude.Unsafe as Unsafe
 import State (ServerM, ServerM', ServerState)
@@ -43,6 +48,7 @@ allHandlers stChan rChan =
       textDocumentDidOpen,
       textDocumentDidChange,
       textDocumentDidSave,
+      textDocumentDefinition,
       textDocumentDidRename,
       textDocumentDidHover,
       textDocumentSymbol,
@@ -154,12 +160,26 @@ textDocumentDidRename = requestHandler LSP.STextDocumentRename $ \req responder 
       -- "documentChanges" field is preferred over "changes"
       rsp = LSP.WorkspaceEdit Nothing (Just (LSP.List [LSP.InL tde])) Nothing
   responder (Right rsp)
-  
--- textDocumentDefinition :: Handlers
--- textDocumentDefinition = requestHandler LSP.STextDocumentDefinition $ \req responder -> do
---   liftIO $ debugM "handlers" "Processing a textDocument/definition request"
---   let LSP.DefinitionParams doc pos _ _ = req ^. LSP.params
---   _
+
+textDocumentDefinition :: Handlers
+textDocumentDefinition = requestHandler LSP.STextDocumentDefinition $ \req responder -> do
+  liftIO $ debugM "handlers" "Processing a textDocument/definition request"
+  let params = req ^. LSP.params
+      span = params ^. LSP.position . Pos.position . to Span.empty
+      path = params ^. LSP.textDocument . LSP.uri . L.to (Unsafe.fromJust . Proto.uriToNormalizedFilePath)
+  noteId <- L.view (#pathToNote . L.at path . L.to Unsafe.fromJust)
+  note <- asks $ State.getNote noteId
+  liftIO $ debugM "handlers" "finding element" 
+  let astElem = Unsafe.fromJust $ AST.containingElement span (note ^. #ast)
+  liftIO $ debugM "handlers" ("Found astElem" ++ show astElem)
+  let dest = case astElem ^. L._1 of
+        AST.Header -> error "should not be header"
+        AST.LinkElement (AST.WikiLink {conn, dest, name}) -> dest
+  destNoteId <- L.view (#nameToNote . L.at dest . L.to (Unsafe.fromJust))
+  destNote <- asks $ State.getNote destNoteId
+  let destNoteUri = destNote ^. #path . L.to Proto.normalizedFilePathToUri
+  liftIO $ debugM "handlers" ("destNoteUri: " ++ show destNoteUri)
+  responder $ Right $ LSP.InL $ Proto.topLocation destNoteUri
 
 textDocumentDidHover :: Handlers
 textDocumentDidHover = requestHandler LSP.STextDocumentHover $ \req responder -> do

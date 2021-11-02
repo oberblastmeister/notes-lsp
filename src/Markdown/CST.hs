@@ -1,8 +1,9 @@
 module Markdown.CST where
 
 import qualified Commonmark
+import Control.Lens.Operators
 import qualified Commonmark.Extensions as Extensions
-import Control.Lens
+import qualified Control.Lens as L
 import qualified Data.Sequence as Seq
 import Markdown.Connection (Connection)
 import qualified Markdown.Links as Links
@@ -36,12 +37,12 @@ addRange ::
   (a, Maybe Commonmark.SourceRange)
 addRange old pos =
   let !_ =
-        if isJust (old ^. _2)
+        if isJust (old ^. L._2)
           then
             -- error $ "setting a span range for: " <> show old <> "\nwith span: " <> show pos
             ()
           else ()
-   in old & _2 ?~ pos
+   in old & L._2 ?~ pos
 
 type Block = (Block', Maybe Commonmark.SourceRange)
 
@@ -55,7 +56,7 @@ data Block'
 
 type Blocks = Seq Block
 
-instance Plated Block where
+instance L.Plated Block where
   plate f (b', r) = (,r) <$> plateBlock' f b'
 
 plateBlock' :: Applicative f => (Block -> f Block) -> Block' -> f Block'
@@ -64,7 +65,7 @@ plateBlock' f = \case
   other -> pure other
 
 instance Commonmark.Rangeable Blocks where
-  ranged r bs = bs & each %~ (`addRange` r)
+  ranged r bs = bs & L.each %~ (`addRange` r)
 
 instance Commonmark.HasAttributes Blocks where
   addAttributes _ = blBlHolder
@@ -95,7 +96,7 @@ instance Extensions.HasPipeTable Inlines Blocks where
   pipeTable _ ils ilss = singleton $ BlInlineHolder $ concatMap toList ils ++ concatMap (concatMap toList) ilss
 
 instance Extensions.HasTaskList Inlines Blocks where
-  taskList _ _ stuff = stuff ^.. each . _2 . each ^. to (singleton . BlBlockHolder)
+  taskList _ _ stuff = stuff ^.. L.each . L._2 . L.each ^. L.to (singleton . BlBlockHolder)
 
 instance Extensions.HasFootnote Inlines Blocks where
   footnote _ _ = blBlHolder
@@ -125,7 +126,7 @@ data WikiLink = WikiLink
 
 type Inlines = Seq Inline
 
-instance Plated Inline where
+instance L.Plated Inline where
   plate f (i', r) = (,r) <$> plateInline' f i'
 
 plateInline' :: Applicative f => (Inline -> f Inline) -> Inline' -> f Inline'
@@ -135,7 +136,7 @@ plateInline' f = \case
   other -> pure other
 
 instance Commonmark.Rangeable Inlines where
-  ranged r bs = bs & each %~ (`addRange` r)
+  ranged r bs = bs & L.each %~ (`addRange` r)
 
 instance Commonmark.IsInline Inlines where
   lineBreak = ilNull

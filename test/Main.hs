@@ -37,10 +37,10 @@ parseTree = do
   let s =
         "# hi\n\
         \[[adsfasdf]]"
-  let s = "\tasdf\t"
-  let s = "a𐐀b"
-  let s = [r|- ![oh](../..)
-- another one|]
+  -- let s = "\tasdf\t"
+  -- let s = "a𐐀b"
+--   let s = [r|- ![oh](../..)
+-- - another one|]
   case Markdown.Parsing.parseAST "<none>" s of
     Left e -> error $ show e
     Right bs -> pPrint bs

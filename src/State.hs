@@ -136,8 +136,8 @@ updateNote note = do
   #noteGraph %= Graph.insNode (noteId, ())
   pure noteId
 
-getNote :: (MonadState ServerState m) => Int -> m Note
-getNote noteId = L.use (#notes . L.at noteId . L.to Unsafe.fromJust)
+getNote ::  Int -> ServerState -> Note
+getNote noteId = L.view (#notes . L.at noteId . L.to Unsafe.fromJust)
 
 getName :: FilePath -> Text
 getName = T.pack . FilePath.dropExtension . FilePath.takeFileName
@@ -168,7 +168,7 @@ changeNote nPath text rope = do
 
 updateNoteGraph :: (MonadState ServerState m) => Int -> m ()
 updateNoteGraph noteId = do
-  note <- getNote noteId
+  note <- gets $ getNote noteId
   forM_ (note ^. #ast) $ \(astElement, _sp) -> case astElement of
     AST.LinkElement link -> do
       whenJustM

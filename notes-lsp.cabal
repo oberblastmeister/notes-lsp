@@ -26,9 +26,12 @@ source-repository head
 library
   exposed-modules:
       Config
+      Data.Pos
       Data.Range
+      Data.Span
       Handlers
       LineIndex
+      LineIndexUtf16
       Markdown.AST
       Markdown.Collect
       Markdown.Connection
@@ -214,6 +217,7 @@ test-suite notes-lsp-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      ASTSpec
       LineIndexSpec
       ServerSpec
       Spec

@@ -22,6 +22,7 @@ import qualified Control.Concurrent as Concurrent
 import Control.Concurrent.STM (TQueue)
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as E
+import qualified Control.Exception as Exception
 import Control.Lens
 import qualified Control.Monad as Monad
 import qualified Data.Aeson as Aeson
@@ -39,7 +40,7 @@ import ReactorMsg
 import State (ServerM, ServerState)
 import qualified State
 import qualified System.Exit as Exit
-import System.Log.Logger (debugM)
+import System.Log.Logger (debugM, errorM)
 import qualified System.Log.Logger as Logger
 
 main :: IO ()
@@ -68,22 +69,33 @@ run = flip E.catches handlers $ do
             interpretHandler = \env -> Server.Iso (State.runServer defSt env) liftIO,
             options = lspOptions
           }
-
-  flip E.finally finalProc $ do
-    logDir <- PIO.getXdgDir PIO.XdgData $ Just [Path.reldir|notes-lsp|]
-    PIO.ensureDir logDir
-    let logFile = logDir </> [Path.relfile|notes-lsp.log|]
-    unlessM (PIO.doesFileExist logFile) $ TIO.writeFile (toFilePath logFile) ""
-    Server.setupLogger (Just $ toFilePath logFile) ["reactor", "handlers"] Logger.DEBUG
-    Server.runServer serverDefinition
+  Exception.finally
+    ( Exception.catch @SomeException
+        ( do
+            setupLogger
+            Server.runServer serverDefinition
+        )
+        ( \e -> do
+            errorM "reactor" ("An exception occured: " ++ show e)
+            Exception.throwIO e
+        )
+    )
+    Logger.removeAllHandlers
   where
     handlers =
       [ E.Handler ioExcept,
         E.Handler someExcept
       ]
-    finalProc = Logger.removeAllHandlers
     ioExcept (e :: E.IOException) = print e >> return 1
     someExcept (e :: E.SomeException) = print e >> return 1
+
+setupLogger :: IO ()
+setupLogger = do
+  logDir <- PIO.getXdgDir PIO.XdgData $ Just [Path.reldir|notes-lsp|]
+  PIO.ensureDir logDir
+  let logFile = logDir </> [Path.relfile|notes-lsp.log|]
+  unlessM (PIO.doesFileExist logFile) $ TIO.writeFile (toFilePath logFile) ""
+  Server.setupLogger (Just $ toFilePath logFile) ["reactor", "handlers"] Logger.DEBUG
 
 syncOptions :: LSP.TextDocumentSyncOptions
 syncOptions =
@@ -134,7 +146,7 @@ reactor' stChan rChan = do
       ReactorMsgInitState newSt -> do
         st <- ask
         liftIO $ debugM "reactor" ("Got st:\n" ++ show newSt)
-        liftIO $ IORef.modifyIORef st (`State.combine` newSt)
+        liftIO $ IORef.writeIORef st newSt
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as
 -- input into the reactor

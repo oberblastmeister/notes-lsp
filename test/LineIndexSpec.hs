@@ -53,7 +53,7 @@ spec = do
           ]
     let index = LineIndex.new text
     index ^. #newLines `shouldBe` VU.fromList newLines
-    print index
+    -- print index
 
     index ^. #newLines . L.to VU.length `shouldBe` 5
     index ^. #nonAscii . L.at 1 `shouldBe` Nothing
