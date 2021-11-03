@@ -2,7 +2,6 @@ module Markdown.AST where
 
 import qualified Commonmark
 import qualified Control.Lens as L
-import Control.Lens.Operators
 import Data.DList (DList)
 import qualified Data.DList as DL
 import Data.Generics.Labels ()

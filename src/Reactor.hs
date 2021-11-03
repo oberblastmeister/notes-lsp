@@ -36,7 +36,7 @@ import ReactorMsg
 import State (ServerM, ServerState)
 import qualified State
 import qualified System.Exit as Exit
-import System.Log.Logger (debugM, errorM)
+import Logging
 import qualified System.Log.Logger as Logger
 import qualified UnliftIO.Exception as E
 import qualified UnliftIO.Exception as Exception
@@ -133,7 +133,7 @@ reactor = reactor'
 
 reactor' :: (MonadReactor m) => TQueue ServerState -> TQueue ReactorAct -> m ()
 reactor' stChan rChan = do
-  liftIO $ debugM "reactor" "Started the reactor"
+  debugM "reactor" "Started the reactor"
   forever $ do
     msg <-
       select
@@ -146,7 +146,7 @@ reactor' stChan rChan = do
         State.runServer st env act
       ReactorMsgInitState newSt -> do
         st <- ask
-        liftIO $ debugM "reactor" ("Got st:\n" ++ show newSt)
+        debugM "reactor" ("Got st:\n" ++ show newSt)
         IORef.writeIORef st newSt
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as

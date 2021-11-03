@@ -32,6 +32,7 @@ library
       Handlers
       LineIndex
       LineIndexUtf16
+      Logging
       Markdown.AST
       Markdown.Collect
       Markdown.Connection
@@ -80,6 +81,7 @@ library
       DeriveDataTypeable
       DeriveLift
       DeriveTraversable
+      DerivingStrategies
       GeneralizedNewtypeDeriving
       GADTs
       PolyKinds
@@ -163,6 +165,7 @@ executable notes-lsp
       DeriveDataTypeable
       DeriveLift
       DeriveTraversable
+      DerivingStrategies
       GeneralizedNewtypeDeriving
       GADTs
       PolyKinds
@@ -252,6 +255,7 @@ test-suite notes-lsp-test
       DeriveDataTypeable
       DeriveLift
       DeriveTraversable
+      DerivingStrategies
       GeneralizedNewtypeDeriving
       GADTs
       PolyKinds

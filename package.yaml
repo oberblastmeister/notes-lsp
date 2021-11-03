@@ -87,6 +87,7 @@ default-extensions:
   - DeriveDataTypeable
   - DeriveLift
   - DeriveTraversable
+  - DerivingStrategies
   - GeneralizedNewtypeDeriving
   - GADTs
   - PolyKinds

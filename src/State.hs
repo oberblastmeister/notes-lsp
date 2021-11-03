@@ -1,15 +1,26 @@
-module State where
+module State
+  ( ServerM,
+    MonadServer,
+    runServer,
+    ServerState,
+    def,
+    updateNote,
+    getNote,
+    getName,
+    newNote,
+    changeNote,
+    updateNoteGraph,
+  )
+where
 
 import Commonmark (ParseError)
 import Config (Config, LanguageContextEnv)
 import qualified Control.Lens as L
 import Control.Lens.Operators
 import Control.Monad.Except (MonadError, liftEither)
-import Control.Monad.IO.Unlift (MonadUnliftIO)
 import qualified Data.Graph.Inductive as Graph
 import Data.Graph.Inductive.PatriciaTree (Gr)
 import qualified Data.HashMap.Strict as HashMap
-import qualified UnliftIO.IORef as IORef
 import qualified Data.IntMap.Strict as IntMap
 import Data.Rope.UTF16 (Rope)
 import qualified Data.Text as T
@@ -25,6 +36,7 @@ import MyPrelude
 import qualified Relude.Unsafe as Unsafe
 import qualified System.FilePath as FilePath
 import qualified Text.Show
+import qualified UnliftIO.IORef as IORef
 
 newtype ServerM a = ServerM {unServer :: ReaderT (IORef ServerState) (LspM Config) a}
   deriving
@@ -45,8 +57,6 @@ type MonadServer m =
     MonadIO m
   )
 
-type ServerM' = ReaderT ServerState (LspM Config)
-
 instance MonadState ServerState ServerM where
   get = do
     ref <- ask
@@ -58,16 +68,6 @@ instance MonadState ServerState ServerM where
 
 runServer :: MonadIO m => IORef ServerState -> Config.LanguageContextEnv -> ServerM a -> m a
 runServer st env m = unServer m & (`runReaderT` st) & Server.runLspT env & liftIO
-
-runServer' :: MonadIO m => ServerState -> Config.LanguageContextEnv -> ServerM' a -> m a
-runServer' st env m = runReaderT m st & Server.runLspT env & liftIO
-
-toServer' :: ServerM a -> ServerM' a
-toServer' m = do
-  st <- ask
-  stRef <- IORef.newIORef st
-  env <- Server.getLspEnv
-  runServer stRef env m
 
 data ServerState = ServerState
   { pathToNote :: HashMap LSP.NormalizedFilePath Int,
@@ -133,7 +133,7 @@ updateNote note = do
   #noteGraph %= Graph.insNode (noteId, ())
   pure noteId
 
-getNote ::  Int -> ServerState -> Note
+getNote :: Int -> ServerState -> Note
 getNote noteId = L.view (#notes . L.at noteId . L.to Unsafe.fromJust)
 
 getName :: FilePath -> Text
