@@ -15,11 +15,6 @@
 module Reactor (main) where
 
 import qualified Config
-import qualified Control.Concurrent as Concurrent
--- import qualified Control.Monad.STM as STM
-
--- import qualified Control.Monad.STM as STM
-
 import Control.Lens
 import qualified Control.Monad as Monad
 import qualified Data.Aeson as Aeson
@@ -43,6 +38,7 @@ import qualified UnliftIO.Exception as Exception
 import UnliftIO.IORef as IORef
 import UnliftIO.STM (TQueue)
 import qualified UnliftIO.STM as STM
+import UnliftIO.Async (async)
 
 main :: IO ()
 main = do
@@ -64,7 +60,7 @@ run = flip E.catches handlers $ do
                 Aeson.Error e -> Left (T.pack e)
                 Aeson.Success cfg -> Right cfg,
             doInitialize = \env _ -> do
-              Concurrent.forkIO $ runReaderT (reactor stChan rChan) defSt
+              async $ runReaderT (reactor stChan rChan) defSt
               pure $ Right env,
             staticHandlers = lspHandlers stChan rChan,
             interpretHandler = \env -> Server.Iso (State.runServer defSt env) liftIO,

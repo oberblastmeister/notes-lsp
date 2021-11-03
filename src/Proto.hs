@@ -4,6 +4,7 @@ module Proto
     uriToNormalizedFilePath,
     normalizedFilePathToUri,
     topLocation,
+    normalizedUri,
   )
 where
 
@@ -16,6 +17,7 @@ import qualified Data.Span as Span
 import qualified Language.LSP.Types as LSP
 import MyPrelude
 import qualified Text.Parsec.Pos as Parsec.Pos
+import qualified Language.LSP.Types.Lens as LSP
 
 rowColumn :: Iso' LSP.Position Rope.RowColumn
 rowColumn =
@@ -37,3 +39,6 @@ normalizedFilePathToUri = LSP.fromNormalizedUri . LSP.normalizedFilePathToUri
 
 topLocation :: LSP.Uri -> LSP.Location
 topLocation = flip LSP.Location (Span.empty (Pos 0 0) ^. L.from Span.span)
+
+normalizedUri :: L.Getter LSP.TextDocumentItem LSP.NormalizedUri
+normalizedUri = LSP.uri . to LSP.toNormalizedUri

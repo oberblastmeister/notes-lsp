@@ -4,11 +4,14 @@ module Utils
     forMaybeM,
     listDirFilesIgnore,
     findUntil,
+    fromJustMsg,
+    intoException,
   )
 where
 
 import MyPrelude
 import qualified Path.IO as PIO
+import qualified UnliftIO.Exception as Exception
 
 scanl'' :: (b -> a -> b) -> b -> [a] -> [b]
 scanl'' f z = drop 1 . scanl' f z
@@ -35,3 +38,15 @@ listDirFilesIgnore =
   PIO.walkDirAccum
     (Just (\_dir subdirs _files -> filter isHidden subdirs & PIO.WalkExclude & pure))
     (\_dir _subdirs files -> filter (not . isHidden) files & pure)
+
+fromJustMsg :: (MonadIO m, HasCallStack) => String -> Maybe a -> m a
+fromJustMsg msg = \case
+  Just a -> pure a
+  Nothing -> Exception.throwString msg
+
+intoException :: (Show e, MonadIO m) => ExceptT e m a -> m a
+intoException m = do
+  res <- runExceptT m
+  case res of
+    Left e -> Exception.throwString $ show e
+    Right x -> pure x

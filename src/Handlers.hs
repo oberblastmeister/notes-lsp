@@ -120,10 +120,15 @@ workspaceDidChangeConfiguration = notificationHandler LSP.SWorkspaceDidChangeCon
 
 textDocumentDidOpen :: Handlers
 textDocumentDidOpen = notificationHandler LSP.STextDocumentDidOpen $ \msg -> do
-  let doc = msg ^. LSP.params . LSP.textDocument . LSP.uri
-      fileName = LSP.uriToFilePath doc
-  debugM "handlers" $ "Processing DidOpenTextDocument for: " ++ show fileName
-  sendDiagnostics (LSP.toNormalizedUri doc) (Just 0)
+  let doc = msg ^. LSP.params . LSP.textDocument . Proto.normalizedUri
+  debugM "handlers" $ "Processing DidOpenTextDocument for: " ++ show doc
+  vf <- Server.getVirtualFile doc
+  case vf of
+    Just (VFS.VirtualFile _ _ rope) -> do
+      let path = doc ^. L.to (Unsafe.fromJust . LSP.uriToNormalizedFilePath)
+      Utils.intoException $ State.changeNote path rope
+    Nothing -> do
+      debugM "handlers" $ "Didn't find anything in the VFS for: " ++ show doc
 
 textDocumentDidChange :: Handlers
 textDocumentDidChange = notificationHandler LSP.STextDocumentDidChange $ \msg -> do
@@ -134,11 +139,11 @@ textDocumentDidChange = notificationHandler LSP.STextDocumentDidChange $ \msg ->
             . LSP.uri
             . to LSP.toNormalizedUri
   debugM "handlers" $ "Processing DidChangeTextDocument for: " ++ show doc
-  mdoc <- Server.getVirtualFile doc
-  case mdoc of
-    Just doc@(VFS.VirtualFile _version str _) -> do
-      debugM "handlers" $ "Found the virtual file: " ++ show str
-      debugM "handlers" $ "Virtual file text: " ++ show (VFS.virtualFileText doc)
+  vf <- Server.getVirtualFile doc
+  case vf of
+    Just (VFS.VirtualFile _ _ rope) -> do
+      let path = doc ^. L.to (Unsafe.fromJust . LSP.uriToNormalizedFilePath)
+      Utils.intoException $ State.changeNote path rope
     Nothing -> do
       debugM "handlers" $ "Didn't find anything in the VFS for: " ++ show doc
 
@@ -171,13 +176,11 @@ textDocumentDefinition = requestHandler LSP.STextDocumentDefinition $ \req -> do
       path = params ^. LSP.textDocument . LSP.uri . L.to (Unsafe.fromJust . Proto.uriToNormalizedFilePath)
   noteId <- L.use (#pathToNote . L.at path . L.to Unsafe.fromJust)
   note <- gets $ State.getNote noteId
-  debugM "handlers" "finding element"
   let astElem = Unsafe.fromJust $ AST.containingElement span (note ^. #ast)
-  debugM "handlers" ("Found astElem" ++ show astElem)
-  let dest = case astElem ^. L._1 of
-        AST.Header -> error "should not be header"
-        AST.LinkElement (AST.WikiLink {conn, dest, name}) -> dest
-  destNoteId <- L.use (#nameToNote . L.at dest . L.to Unsafe.fromJust)
+  dest <- case astElem ^. L._1 of
+    AST.LinkElement AST.WikiLink {dest} -> pure dest
+    _ -> Exception.throwString "No link under the cursor"
+  destNoteId <- L.use (#nameToNote . L.at dest) >>= Utils.fromJustMsg "Could not find destination of like"
   destNote <- gets $ State.getNote destNoteId
   let destNoteUri = destNote ^. #path . L.to Proto.normalizedFilePathToUri
   debugM "handlers" ("destNoteUri: " ++ show destNoteUri)
@@ -286,20 +289,24 @@ completionItem _label _kind =
 -- testing = requestHandler (LSP.SCustomMethod "notes-lsp/testing") $ \req responder -> do
 --   responder $ Right $ Aeson.Object mempty
 
+type family HandlerReturn f m where
+  HandlerReturn f (m :: LSP.Method _from 'LSP.Request) = LSP.RequestMessage m -> f (LSP.ResponseResult m)
+
 notificationHandler ::
   forall (m :: LSP.Method 'LSP.FromClient 'LSP.Notification).
   LSP.SMethod m ->
   Server.Handler ServerM m ->
   Server.Handlers ServerM
-notificationHandler = Server.notificationHandler
-
-type family HandlerReturn f m where
-  HandlerReturn f (m :: LSP.Method _from 'LSP.Request) = LSP.RequestMessage m -> f (LSP.ResponseResult m)
+notificationHandler smethod fn = do
+  Server.notificationHandler smethod $ \msg -> do
+    fn msg & Exception.tryAny >>= \case
+      Left e -> do
+        errorM "handlers" ("An exception occured inside of a notification handler " ++ Text.Show.show e)
+      Right () -> pure ()
 
 requestHandler ::
   forall (m :: LSP.Method 'LSP.FromClient 'LSP.Request).
   LSP.SMethod m ->
-  -- Server.Handler ServerM' m ->
   HandlerReturn ServerM m ->
   Server.Handlers ServerM
 requestHandler smethod fn = do
@@ -312,14 +319,17 @@ requestHandler smethod fn = do
         stRef <- IORef.newIORef st
         res <-
           State.runServer stRef env act & Exception.tryAny
-            <&> first
-              ( \e ->
-                  LSP.ResponseError
-                    { _code = LSP.UnknownErrorCode,
-                      _message = T.pack $ Text.Show.show e,
-                      _xdata = Nothing
-                    }
-              )
+            >>= \case
+              Left e -> do
+                errorM "handlers" ("An exception occured inside of a request handler: " ++ Text.Show.show e)
+                pure $
+                  Left $
+                    LSP.ResponseError
+                      { _code = LSP.UnknownErrorCode,
+                        _message = T.pack $ Text.Show.show e,
+                        _xdata = Nothing
+                      }
+              Right x -> pure $ Right x
         State.runServer stRef env (k res)
 
 initializeState :: (MonadUnliftIO m) => TQueue ServerState -> Maybe (Path Abs Dir) -> Maybe [LSP.WorkspaceFolder] -> m ()
@@ -342,7 +352,7 @@ initializeState' stChan root = do
             let rope = Rope.fromText contents
             let nPath = LSP.toNormalizedFilePath $ toFilePath mdFile
             runExceptT
-              (State.newNote nPath contents rope)
+              (State.newNote nPath rope)
               >>= \case
                 Left e -> pure Nothing
                 Right noteId -> pure $ Just noteId

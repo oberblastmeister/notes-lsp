@@ -34,8 +34,8 @@ data Span = Span
 
 new :: Pos -> Pos -> Span
 new start@Pos {line, col} end@Pos {line = line', col = col'} =
-  let !_ = if line <= line' then () else error "Data.Span: start line must be less end line"
-      !_ = if col <= col' then () else error "Data.Span: start col must be less than end col"
+  let !_ = if line <= line' then () else error "Data.Span.new: start line must be less end line"
+      !_ = if col <= col' then () else error "Data.Span.new: start col must be less than end col"
    in Span {start, end}
 
 new' :: Int -> Int -> Int -> Int -> Span
