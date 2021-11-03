@@ -35,7 +35,6 @@ dependencies:
   - lsp
   - lsp-types
   - aeson
-  - stm
   - monad-par
   - hslogger
   - commonmark

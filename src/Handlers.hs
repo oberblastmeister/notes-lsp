@@ -8,8 +8,8 @@ where
 import qualified Config
 import qualified Control.Concurrent as Concurrent
 import UnliftIO.Async (async)
-import Control.Concurrent.STM (TQueue)
-import qualified Control.Concurrent.STM as STM
+import UnliftIO.STM (TQueue)
+import qualified UnliftIO.STM as STM
 import qualified UnliftIO.Exception as Exception
 import Control.Lens
 import qualified Control.Lens as L

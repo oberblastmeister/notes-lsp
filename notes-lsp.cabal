@@ -119,7 +119,6 @@ library
     , relude
     , rope-utf16-splay
     , split
-    , stm
     , text
     , transformers
     , unliftio
@@ -204,7 +203,6 @@ executable notes-lsp
     , relude
     , rope-utf16-splay
     , split
-    , stm
     , text
     , transformers
     , unliftio
@@ -296,7 +294,6 @@ test-suite notes-lsp-test
     , relude
     , rope-utf16-splay
     , split
-    , stm
     , text
     , transformers
     , unliftio
