@@ -14,6 +14,7 @@ module MyPrelude
     File,
     toFilePath,
     (</>),
+    MonadUnliftIO,
   )
 where
 
@@ -22,6 +23,7 @@ import qualified Debug.Trace as Debug
 import Path (Abs, Dir, File, Path, Rel, toFilePath, (</>))
 import Relude hiding (print, show, traceShow, traceShowId, traceShowM)
 import Text.Pretty.Simple
+import Control.Monad.IO.Unlift (MonadUnliftIO)
 
 class PrettyShow b where
   show :: Show a => a -> b

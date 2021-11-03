@@ -87,7 +87,7 @@ library
       ViewPatterns
       PatternSynonyms
       TypeFamilies
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -Werror=incomplete-patterns
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -170,7 +170,7 @@ executable notes-lsp
       ViewPatterns
       PatternSynonyms
       TypeFamilies
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -Werror=incomplete-patterns -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -259,7 +259,7 @@ test-suite notes-lsp-test
       ViewPatterns
       PatternSynonyms
       TypeFamilies
-  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -Werror=incomplete-patterns -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base >=4.7 && <5

@@ -7,15 +7,10 @@ where
 
 import qualified Config
 import qualified Control.Concurrent as Concurrent
-import UnliftIO.Async (async)
-import UnliftIO.STM (TQueue)
-import qualified UnliftIO.STM as STM
-import qualified UnliftIO.Exception as Exception
 import Control.Lens
 import qualified Control.Lens as L
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
-import qualified Data.IORef as IORef
 import qualified Data.Pos as Pos
 import qualified Data.Rope.UTF16 as Rope
 import qualified Data.Span as Span
@@ -36,6 +31,11 @@ import State (ServerM, ServerM', ServerState)
 import qualified State
 import System.Log.Logger (debugM, errorM)
 import qualified Text.Show
+import UnliftIO.Async (async)
+import qualified UnliftIO.Exception as Exception
+import qualified UnliftIO.IORef as IORef
+import UnliftIO.STM (TQueue)
+import qualified UnliftIO.STM as STM
 import Utils (forMaybeM)
 import qualified Utils
 
@@ -83,7 +83,7 @@ initialized stChan = notificationHandler LSP.SInitialized $ \_msg -> do
   root <- Server.getRootPath <&> (>>= Path.parseAbsDir)
   folders <- Server.getWorkspaceFolders
   liftIO $ debugM "handlers" "Initializing state"
-  void $ liftIO $ async $ initializeState stChan root folders
+  void $ async $ initializeState stChan root folders
 
   -- We're initialized! Lets send a showMessageRequest now
   let params =
@@ -308,23 +308,21 @@ requestHandler smethod fn = do
     env <- Server.getLspEnv
     let act = fn msg
     void $
-      liftIO $
-        async $ do
-          res <-
-            State.runServer' st env act & Exception.tryAny
-              <&> first
-                ( \e ->
-                    LSP.ResponseError
-                      { _code = LSP.UnknownErrorCode,
-                        _message = T.pack $ Text.Show.show e,
-                        _xdata = Nothing
-                      }
-                )
-          stRef <- IORef.newIORef st
-          State.runServer stRef env (k res)
-          return ()
+      async $ do
+        res <-
+          State.runServer' st env act & Exception.tryAny
+            <&> first
+              ( \e ->
+                  LSP.ResponseError
+                    { _code = LSP.UnknownErrorCode,
+                      _message = T.pack $ Text.Show.show e,
+                      _xdata = Nothing
+                    }
+              )
+        stRef <- IORef.newIORef st
+        State.runServer stRef env (k res)
 
-initializeState :: TQueue ServerState -> Maybe (Path Abs Dir) -> Maybe [LSP.WorkspaceFolder] -> IO ()
+initializeState :: (MonadUnliftIO m) => TQueue ServerState -> Maybe (Path Abs Dir) -> Maybe [LSP.WorkspaceFolder] -> m ()
 initializeState rChan maybeRoot folders = do
   liftIO $ debugM "handlers" ("root " ++ show maybeRoot)
   liftIO $ debugM "handlers" ("folders " ++ show folders)
@@ -332,25 +330,17 @@ initializeState rChan maybeRoot folders = do
     Just root -> initializeState' rChan root
     Nothing -> pure ()
 
-initializeState' :: TQueue ServerState -> Path Abs Dir -> IO ()
+initializeState' :: (MonadUnliftIO m) => TQueue ServerState -> Path Abs Dir -> m ()
 initializeState' stChan root = do
   files <- Utils.listDirFilesIgnore root
-  mdFiles <-
-    filterM
-      ( \file ->
-          Exception.tryAny (Path.fileExtension file)
-            <&> rightToMaybe
-            <&> fmap (== ".md")
-            <&> fromMaybe False
-      )
-      files
+  let mdFiles = filter ((Just ".md" ==) . Path.fileExtension) files
   st <-
     execStateT
       ( do
           noteIds <- forMaybeM mdFiles $ \mdFile -> do
             contents <- liftIO $ TIO.readFile $ toFilePath mdFile
             let rope = Rope.fromText contents
-            let nPath = LSP.toNormalizedFilePath $ toFilePath $ mdFile
+            let nPath = LSP.toNormalizedFilePath $ toFilePath mdFile
             runExceptT
               (State.newNote nPath contents rope)
               >>= \case

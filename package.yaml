@@ -101,6 +101,7 @@ ghc-options:
   - -Wincomplete-uni-patterns
   - -Wredundant-constraints
   - -Wno-unused-do-bind
+  - -Werror=incomplete-patterns
 
 library:
   source-dirs: src
