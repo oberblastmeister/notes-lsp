@@ -2,14 +2,16 @@ module Data.Pos
   ( Pos (..),
     unsafeFromSourcePos,
     position,
+    rowColumn,
   )
 where
 
 import Commonmark
+import qualified Control.Lens as L
+import qualified Data.Rope.UTF16 as Rope
+import qualified Language.LSP.Types as LSP
 import MyPrelude
 import Text.Parsec.Pos (sourceColumn, sourceLine)
-import qualified Control.Lens as L
-import qualified Language.LSP.Types as LSP
 
 data Pos = Pos
   { line :: !Int,
@@ -25,3 +27,9 @@ position =
   L.iso
     (\LSP.Position {_line, _character} -> Pos {line = _line, col = _character})
     (\Pos {line, col} -> LSP.Position {_line = line, _character = col})
+
+rowColumn :: L.Iso' Rope.RowColumn Pos
+rowColumn =
+  L.iso
+    (\Rope.RowColumn {row, column} -> Pos {line = row, col = column})
+    (\Pos {line, col} -> Rope.RowColumn {row = line, column = col})

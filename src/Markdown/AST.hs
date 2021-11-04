@@ -1,7 +1,10 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module Markdown.AST where
 
 import qualified Commonmark
 import qualified Control.Lens as L
+import qualified Data.Aeson as Aeson
 import Data.DList (DList)
 import qualified Data.DList as DL
 import Data.Generics.Labels ()
@@ -13,7 +16,11 @@ import Markdown.Connection (Connection)
 import MyPrelude
 import qualified Relude.Unsafe as Unsafe
 
-type AST = [ASTElement]
+data AST = AST
+  { meta :: Maybe Aeson.Value,
+    elems :: [ASTElement]
+  }
+  deriving (Show, Eq, Generic)
 
 type ASTBuilder = DList ASTElement
 
@@ -38,8 +45,8 @@ plateAstElement' :: Applicative f => (ASTElement -> f ASTElement) -> ASTElement'
 plateAstElement' f = \case
   other -> pure other
 
-makeAST :: [CST.Block] -> AST
-makeAST = DL.toList . fromBlocks . toList
+makeAST :: Maybe Aeson.Value -> [CST.Block] -> AST
+makeAST meta = AST meta . DL.toList . fromBlocks . toList
 
 fromBlocks :: [CST.Block] -> ASTBuilder
 fromBlocks = foldMap fromBlock
@@ -75,3 +82,4 @@ containingElement span =
   find (\(_, span') -> span' `Span.contains` span)
     . reverse -- children before parents
     . L.universeOn L.each
+    . L.view #elems

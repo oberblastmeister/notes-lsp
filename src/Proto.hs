@@ -5,6 +5,7 @@ module Proto
     normalizedFilePathToUri,
     topLocation,
     normalizedUri,
+    pos,
   )
 where
 
@@ -12,12 +13,14 @@ import qualified Commonmark
 import Control.Lens
 import qualified Control.Lens as L
 import Data.Pos (Pos (Pos))
+import qualified Data.Pos as Pos
 import qualified Data.Rope.UTF16 as Rope
+import Data.Span (Span)
 import qualified Data.Span as Span
 import qualified Language.LSP.Types as LSP
+import qualified Language.LSP.Types.Lens as LSP
 import MyPrelude
 import qualified Text.Parsec.Pos as Parsec.Pos
-import qualified Language.LSP.Types.Lens as LSP
 
 rowColumn :: Iso' LSP.Position Rope.RowColumn
 rowColumn =
@@ -38,7 +41,10 @@ normalizedFilePathToUri :: LSP.NormalizedFilePath -> LSP.Uri
 normalizedFilePathToUri = LSP.fromNormalizedUri . LSP.normalizedFilePathToUri
 
 topLocation :: LSP.Uri -> LSP.Location
-topLocation = flip LSP.Location (Span.empty (Pos 0 0) ^. L.from Span.span)
+topLocation = flip LSP.Location (Span.empty (Pos 0 0) ^. L.from Span.range)
 
-normalizedUri :: L.Getter LSP.TextDocumentItem LSP.NormalizedUri
+normalizedUri :: LSP.HasUri a LSP.Uri => L.Getter a LSP.NormalizedUri
 normalizedUri = LSP.uri . to LSP.toNormalizedUri
+
+pos :: LSP.HasPosition s LSP.Position => Lens' s Pos
+pos = LSP.position . Pos.position

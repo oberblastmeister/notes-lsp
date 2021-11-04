@@ -16,8 +16,12 @@ import qualified Markdown.AST as AST
 import qualified Markdown.CST as CST
 import qualified Markdown.Links as Links
 import MyPrelude
+import qualified Text.Megaparsec as M
+import qualified Text.Megaparsec.Char as M
 import qualified Text.Pandoc.Builder as Pandoc.Builder
 import qualified Text.Parsec as Parsec
+import qualified Data.Aeson as Aeson
+import qualified Data.Yaml as Yaml
 
 type SyntaxSpec m il bl =
   ( SyntaxSpec' m il bl,
@@ -67,18 +71,44 @@ syntaxSpec =
       Links.wikiLinkSpec
     ]
 
-parseCST :: FilePath -> Text -> Either ParseError [CST.Block]
-parseCST path input = do
-  toList
-    <$> runIdentity
-      ( Commonmark.commonmarkWith
-          @Identity
-          @CST.Inlines
-          @CST.Blocks
-          syntaxSpec
-          path
-          input
-      )
+parseAST :: FilePath -> Text -> Either Text AST
+parseAST path input = uncurry AST.makeAST <$> parseCST path input
 
-parseAST :: FilePath -> Text -> Either ParseError AST
-parseAST path input = AST.makeAST <$> parseCST path input
+parseCST :: forall meta. (Aeson.FromJSON meta) => FilePath -> Text -> Either Text (Maybe meta, [CST.Block])
+parseCST path input = do
+  (mMeta, markdown) <- partitionMarkdown path input
+  mMetaVal <- first show $ (Yaml.decodeEither' . encodeUtf8) `traverse` mMeta
+  cst <- bimap
+    show
+    toList
+    ( runIdentity
+        ( Commonmark.commonmarkWith
+            @Identity
+            @CST.Inlines
+            @CST.Blocks
+            syntaxSpec
+            path
+            markdown
+        )
+    )
+  pure (mMetaVal, cst)
+
+partitionMarkdown :: FilePath -> Text -> Either Text (Maybe Text, Text)
+partitionMarkdown =
+  parse (M.try splitP <|> fmap (Nothing,) M.takeRest)
+  where
+    separatorP :: M.Parsec Void Text ()
+    separatorP =
+      void $ M.string "---" <* M.eol
+
+    splitP :: M.Parsec Void Text (Maybe Text, Text)
+    splitP = do
+      separatorP
+      a <- toText <$> M.manyTill M.anySingle (M.try $ M.eol *> separatorP)
+      b <- M.takeRest
+      pure (Just a, b)
+
+    parse :: M.Parsec Void Text a -> String -> Text -> Either Text a
+    parse p fn s =
+      first (toText . M.errorBundlePretty) $
+        M.parse (p <* M.eof) fn s

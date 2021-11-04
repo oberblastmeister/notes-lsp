@@ -19,5 +19,5 @@ type LanguageContextEnv = Server.LanguageContextEnv Config
 data Config = Config {fooTheBar :: !Bool, wibbleFactor :: !Int}
   deriving (Generic, Show, Aeson.ToJSON, Aeson.FromJSON)
 
-def :: Config
-def = Config {fooTheBar = False, wibbleFactor = 0}
+instance Default Config where
+  def = Config {fooTheBar = False, wibbleFactor = 0}

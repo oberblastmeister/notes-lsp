@@ -4,6 +4,7 @@
 module Data.Span
   ( Span (SpanV, SpanV'),
     new,
+    unsafeNew,
     new',
     _start,
     _end,
@@ -14,7 +15,8 @@ module Data.Span
     unsafeFromSourceRange,
     contains,
     empty,
-    span,
+    empty',
+    range,
   )
 where
 
@@ -32,6 +34,9 @@ data Span = Span
   }
   deriving (Show, Eq, Ord)
 
+unsafeNew :: Pos -> Pos -> Span
+unsafeNew = Span
+
 new :: Pos -> Pos -> Span
 new start@Pos {line, col} end@Pos {line = line', col = col'} =
   let !_ = if line <= line' then () else error "Data.Span.new: start line must be less end line"
@@ -43,6 +48,9 @@ new' line col line' col' = new (Pos line col) (Pos line' col')
 
 empty :: Pos -> Span
 empty pos = Span {start = pos, end = pos}
+
+empty' :: Int -> Int -> Span
+empty' line = empty . Pos line
 
 pattern SpanV :: Pos -> Pos -> Span
 pattern SpanV start end <- Span {start, end}
@@ -79,7 +87,9 @@ _col2 = _end . #col
 -- | Does the first span contain the other?
 contains :: Span -> Span -> Bool
 contains (SpanV' line1 col1 line2 col2) (SpanV' line1' col1' line2' col2') =
-  line1 <= line1' && line2' <= line2 && col1 <= col1' && col2' <= col2
+  line1 <= line1' && line2' <= line2
+    && (line1 /= line1' || col1 <= col1')
+    && (line2 /= line2' || col2' <= col2)
 
 -- this is unsafe because SourcePos is usually Char based
 -- we want utf-16 code units
@@ -87,8 +97,8 @@ contains (SpanV' line1 col1 line2 col2) (SpanV' line1' col1' line2' col2') =
 unsafeFromSourceRange :: (SourcePos, SourcePos) -> Span
 unsafeFromSourceRange (pos1, pos2) = Span {start = Pos.unsafeFromSourcePos pos1, end = Pos.unsafeFromSourcePos pos2}
 
-span :: L.Iso' LSP.Range Span
-span =
+range :: L.Iso' LSP.Range Span
+range =
   L.iso
     (\LSP.Range {_start, _end} -> Span {start = _start ^. Pos.position, end = _end ^. Pos.position})
     (\Span {start, end} -> LSP.Range {_start = start ^. L.from Pos.position, _end = end ^. L.from Pos.position})

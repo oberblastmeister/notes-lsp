@@ -2,18 +2,17 @@
 
 module Main (main) where
 
-import MyPrelude
-import qualified LineIndex
-import qualified Spec
 import Control.Lens
 import Data.Data (Data)
 import Data.IxSet.Typed (IxSet, (@<), (@=))
 import qualified Data.IxSet.Typed as IxSet
+import qualified LineIndex
 import qualified Markdown.Parsing
+import MyPrelude
+import qualified Spec
 import Text.Pretty.Simple
-import qualified Prelude as P
 import Text.RawString.QQ
-
+import qualified Prelude as P
 
 main :: IO ()
 main = do
@@ -35,12 +34,15 @@ parseTree = do
         \*italics*\n\
         \"
   let s =
-        "# hi\n\
+        "---\n\
+        \first: true\n\
+        \---\n\
+        \# hi\n\
         \[[adsfasdf]]"
   -- let s = "\tasdf\t"
   -- let s = "a𐐀b"
---   let s = [r|- ![oh](../..)
--- - another one|]
+  --   let s = [r|- ![oh](../..)
+  -- - another one|]
   case Markdown.Parsing.parseAST "<none>" s of
     Left e -> error $ show e
     Right bs -> pPrint bs
@@ -52,26 +54,32 @@ data Entry = Entry
     id :: Id,
     content :: Content
   }
-  deriving (Show, Eq, Ord, Data, Typeable, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 newtype Updated = Updated Int
-  deriving (Show, Eq, Ord, Data, Typeable)
+  deriving (Show, Eq, Ord)
 
 newtype Id = Id Int64
-  deriving (Show, Eq, Ord, Data, Typeable)
+  deriving (Show, Eq, Ord)
 
 newtype Content = Content String
-  deriving (Show, Eq, Ord, Data, Typeable)
+  deriving (Show, Eq, Ord)
 
 newtype Author = Author Email
-  deriving (Show, Eq, Ord, Data, Typeable)
+  deriving (Show, Eq, Ord)
 
 type Email = String
 
 data Test = Test
-  deriving (Show, Eq, Ord, Data, Typeable)
+  deriving (Show, Eq, Ord)
 
-type EntryIxs = '[Author, [Author], Updated, Id, Content]
+type EntryIxs =
+  '[ Author,
+     [Author],
+     Updated,
+     Id,
+     Content
+   ]
 
 type IxEntry = IxSet EntryIxs Entry
 

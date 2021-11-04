@@ -1,6 +1,7 @@
 module MyPrelude
   ( module Relude,
     module Data.Generics.Labels,
+    module Data.Default,
     show,
     print,
     traceShow,
@@ -18,12 +19,13 @@ module MyPrelude
   )
 where
 
+import Control.Monad.IO.Unlift (MonadUnliftIO)
+import Data.Default
 import Data.Generics.Labels
 import qualified Debug.Trace as Debug
 import Path (Abs, Dir, File, Path, Rel, toFilePath, (</>))
 import Relude hiding (print, show, traceShow, traceShowId, traceShowM)
 import Text.Pretty.Simple
-import Control.Monad.IO.Unlift (MonadUnliftIO)
 
 class PrettyShow b where
   show :: Show a => a -> b

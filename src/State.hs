@@ -3,6 +3,7 @@ module State
     MonadServer,
     runServer,
     ServerState,
+    LinkKind (..),
     def,
     updateNote,
     getNote,
@@ -10,10 +11,10 @@ module State
     newNote,
     changeNote,
     updateNoteGraph,
+    Note (..),
   )
 where
 
-import Commonmark (ParseError)
 import Config (Config, LanguageContextEnv)
 import qualified Control.Lens as L
 import Control.Lens.Operators
@@ -23,6 +24,7 @@ import Data.Graph.Inductive.PatriciaTree (Gr)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.IntMap.Strict as IntMap
 import Data.Rope.UTF16 (Rope)
+import qualified Data.Rope.UTF16 as Rope
 import qualified Data.Text as T
 import Language.LSP.Server (LspM)
 import qualified Language.LSP.Server as Server
@@ -37,7 +39,6 @@ import qualified Relude.Unsafe as Unsafe
 import qualified System.FilePath as FilePath
 import qualified Text.Show
 import qualified UnliftIO.IORef as IORef
-import qualified Data.Rope.UTF16 as Rope
 
 newtype ServerM a = ServerM {unServer :: ReaderT (IORef ServerState) (LspM Config) a}
   deriving
@@ -55,7 +56,8 @@ type MonadServer :: (* -> *) -> Constraint
 type MonadServer m =
   ( MonadReader (IORef ServerState) m,
     MonadState ServerState m,
-    MonadIO m
+    MonadUnliftIO m,
+    Server.MonadLsp Config m
   )
 
 instance MonadState ServerState ServerM where
@@ -86,15 +88,16 @@ instance Show ServerState where
       ++ Text.Show.show nameToNote
       ++ Text.Show.show noteGraph
 
-def :: ServerState
-def =
-  ServerState
-    { pathToNote = HashMap.empty,
-      nameToNote = HashMap.empty,
-      notes = IntMap.empty,
-      noteGraph = Graph.empty,
-      size = 0
-    }
+instance Default ServerState where
+  def :: ServerState
+  def =
+    ServerState
+      { pathToNote = HashMap.empty,
+        nameToNote = HashMap.empty,
+        notes = IntMap.empty,
+        noteGraph = Graph.empty,
+        size = 0
+      }
 
 data Note = Note
   { ast :: AST,
@@ -105,6 +108,9 @@ data Note = Note
     id :: Int
   }
   deriving (Show, Generic)
+
+data LinkKind = Normal | Folgezettel
+  deriving (Show, Eq, Generic)
 
 updateNote :: MonadState ServerState m => Note -> m Int
 updateNote note = do
@@ -131,7 +137,7 @@ getName :: FilePath -> Text
 getName = T.pack . FilePath.dropExtension . FilePath.takeFileName
 
 newNote ::
-  (MonadState ServerState m, MonadError ParseError m) =>
+  (MonadState ServerState m, MonadError Text m) =>
   LSP.NormalizedFilePath ->
   Rope ->
   m Int
@@ -145,7 +151,7 @@ newNote nPath rope = do
   updateNote note
 
 changeNote ::
-  (MonadState ServerState m, MonadError ParseError m) =>
+  (MonadState ServerState m, MonadError Text m) =>
   LSP.NormalizedFilePath ->
   Rope ->
   m ()
@@ -156,7 +162,7 @@ changeNote nPath rope = do
 updateNoteGraph :: (MonadState ServerState m) => Int -> m ()
 updateNoteGraph noteId = do
   note <- gets $ getNote noteId
-  forM_ (note ^. #ast) $ \(astElement, _sp) -> case astElement of
+  forM_ (note ^. #ast . #elems) $ \(astElement, _sp) -> case astElement of
     AST.LinkElement link -> do
       whenJustM
         (L.use (#nameToNote . L.at (link ^. #dest)))

@@ -76,10 +76,10 @@ unsafeNew :: Int -> Int -> Range
 unsafeNew = Range
 
 new :: Int -> Int -> Range
-new start end =
-  if start > end
-    then error "start cannot be greater than end"
-    else Range {start, end}
+new start end
+  | start > end = error "Data.Range.new: start cannot be greater than end"
+  | start < 0 = error "Data.Range.new: start cannot be negative"
+  | otherwise = Range {start, end}
 
 length :: Range -> Int
 length Range {start, end} = end - start
@@ -87,6 +87,6 @@ length Range {start, end} = end - start
 contains :: Range -> Range -> Bool
 contains Range {start, end} Range {start = start', end = end'} =
   start <= start' && end < end'
-  
+
 -- fromLSP :: LSP.Position -> Range
--- fromLSP pos -> 
+-- fromLSP pos ->

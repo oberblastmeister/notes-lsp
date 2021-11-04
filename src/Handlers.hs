@@ -10,17 +10,17 @@ import Control.Lens
 import qualified Control.Lens as L
 import qualified Data.Aeson as Aeson
 import qualified Data.HashMap.Strict as H
-import qualified Data.Pos as Pos
 import qualified Data.Rope.UTF16 as Rope
 import qualified Data.Span as Span
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import qualified Handlers.Completion
+import Handlers.Utils
 import qualified Language.LSP.Diagnostics as Diagnostics
 import qualified Language.LSP.Server as Server
 import qualified Language.LSP.Types as LSP
 import qualified Language.LSP.Types.Lens as LSP
 import qualified Language.LSP.VFS as VFS
--- import System.Log.Logger (debugM, errorM)
 import Logging
 import qualified Markdown.AST as AST
 import MyPrelude
@@ -28,21 +28,15 @@ import qualified Path
 import qualified Proto
 import ReactorMsg
 import qualified Relude.Unsafe as Unsafe
-import State (ServerM, ServerState)
+import State (ServerState)
 import qualified State
-import qualified Text.Show
 import UnliftIO.Async (async)
 import UnliftIO.Concurrent as Concurrent
 import qualified UnliftIO.Exception as Exception
-import qualified UnliftIO.IORef as IORef
 import UnliftIO.STM (TQueue)
 import qualified UnliftIO.STM as STM
 import Utils (forMaybeM)
 import qualified Utils
-
-type Handler a = Server.Handler ServerM a
-
-type Handlers = Server.Handlers ServerM
 
 allHandlers :: TQueue ServerState -> TQueue ReactorAct -> Handlers
 allHandlers stChan rChan =
@@ -58,7 +52,7 @@ allHandlers stChan rChan =
       textDocumentSymbol,
       textDocumentCodeAction,
       workspaceExecuteCommand,
-      textDocumentCompletion
+      Handlers.Completion.handler
     ]
 
 -- | Analyze the file and send any diagnostics to the client in a
@@ -172,10 +166,8 @@ textDocumentDefinition :: Handlers
 textDocumentDefinition = requestHandler LSP.STextDocumentDefinition $ \req -> do
   debugM "handlers" "Processing a textDocument/definition request"
   let params = req ^. LSP.params
-      span = params ^. LSP.position . Pos.position . to Span.empty
-      path = params ^. LSP.textDocument . LSP.uri . L.to (Unsafe.fromJust . Proto.uriToNormalizedFilePath)
-  noteId <- L.use (#pathToNote . L.at path . L.to Unsafe.fromJust)
-  note <- gets $ State.getNote noteId
+      span = params ^. Proto.pos . to Span.empty
+  note <- getNote params
   let astElem = Unsafe.fromJust $ AST.containingElement span (note ^. #ast)
   dest <- case astElem ^. L._1 of
     AST.LinkElement AST.WikiLink {dest} -> pure dest
@@ -243,94 +235,9 @@ workspaceExecuteCommand = requestHandler LSP.SWorkspaceExecuteCommand $ \req -> 
         Concurrent.threadDelay (1 * 1000000)
   pure $ Aeson.Object mempty
 
-textDocumentCompletion :: Handlers
-textDocumentCompletion = requestHandler LSP.STextDocumentCompletion $ \req -> do
-  let params = req ^. LSP.params
-      uri = params ^. LSP.textDocument . LSP.uri . to LSP.toNormalizedUri
-  -- prefix <- VFS.getCompletionPrefix Position VirtualFile
-  vf <- Server.getVirtualFile uri <&> Unsafe.fromJust
-
-  -- debugM "handlers" $ show params
-  let items =
-        LSP.List $
-          fmap
-            (`completionItem` LSP.CiFile)
-            [ "first",
-              "second"
-            ]
-  pure $ LSP.InL items
-
--- shouldComplete :: Rope -> Bool
--- shouldCompletekj
-
-completionItem :: Text -> LSP.CompletionItemKind -> LSP.CompletionItem
-completionItem _label _kind =
-  LSP.CompletionItem
-    { _label,
-      _kind = Just _kind,
-      _tags = Nothing,
-      _detail = Nothing,
-      _documentation = Nothing,
-      _deprecated = Nothing,
-      _preselect = Nothing,
-      _sortText = Nothing,
-      _filterText = Nothing,
-      _insertText = Nothing,
-      _insertTextFormat = Nothing,
-      _insertTextMode = Nothing,
-      _textEdit = Nothing,
-      _additionalTextEdits = Nothing,
-      _commitCharacters = Nothing,
-      _command = Nothing,
-      _xdata = Nothing
-    }
-
 -- testing :: Handlers
 -- testing = requestHandler (LSP.SCustomMethod "notes-lsp/testing") $ \req responder -> do
 --   responder $ Right $ Aeson.Object mempty
-
-type family HandlerReturn f m where
-  HandlerReturn f (m :: LSP.Method _from 'LSP.Request) = LSP.RequestMessage m -> f (LSP.ResponseResult m)
-
-notificationHandler ::
-  forall (m :: LSP.Method 'LSP.FromClient 'LSP.Notification).
-  LSP.SMethod m ->
-  Server.Handler ServerM m ->
-  Server.Handlers ServerM
-notificationHandler smethod fn = do
-  Server.notificationHandler smethod $ \msg -> do
-    fn msg & Exception.tryAny >>= \case
-      Left e -> do
-        errorM "handlers" ("An exception occured inside of a notification handler " ++ Text.Show.show e)
-      Right () -> pure ()
-
-requestHandler ::
-  forall (m :: LSP.Method 'LSP.FromClient 'LSP.Request).
-  LSP.SMethod m ->
-  HandlerReturn ServerM m ->
-  Server.Handlers ServerM
-requestHandler smethod fn = do
-  Server.requestHandler smethod $ \msg k -> do
-    st <- get
-    env <- Server.getLspEnv
-    let act = fn msg
-    void $
-      async $ do
-        stRef <- IORef.newIORef st
-        res <-
-          State.runServer stRef env act & Exception.tryAny
-            >>= \case
-              Left e -> do
-                errorM "handlers" ("An exception occured inside of a request handler: " ++ Text.Show.show e)
-                pure $
-                  Left $
-                    LSP.ResponseError
-                      { _code = LSP.UnknownErrorCode,
-                        _message = T.pack $ Text.Show.show e,
-                        _xdata = Nothing
-                      }
-              Right x -> pure $ Right x
-        State.runServer stRef env (k res)
 
 initializeState :: (MonadUnliftIO m) => TQueue ServerState -> Maybe (Path Abs Dir) -> Maybe [LSP.WorkspaceFolder] -> m ()
 initializeState rChan maybeRoot folders = do

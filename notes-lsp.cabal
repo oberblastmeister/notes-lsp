@@ -28,8 +28,12 @@ library
       Config
       Data.Pos
       Data.Range
+      Data.Rope.Utils
       Data.Span
       Handlers
+      Handlers.Completion
+      Handlers.Utils
+      Language.LSP.Types.Instances
       LineIndex
       LineIndexUtf16
       Logging
@@ -98,6 +102,7 @@ library
     , commonmark-extensions
     , commonmark-pandoc
     , containers
+    , data-default
     , directory
     , dlist
     , fgl
@@ -127,6 +132,7 @@ library
     , unliftio-core
     , unordered-containers
     , vector
+    , yaml
   default-language: Haskell2010
 
 executable notes-lsp
@@ -182,6 +188,7 @@ executable notes-lsp
     , commonmark-extensions
     , commonmark-pandoc
     , containers
+    , data-default
     , directory
     , dlist
     , fgl
@@ -212,6 +219,7 @@ executable notes-lsp
     , unliftio-core
     , unordered-containers
     , vector
+    , yaml
   default-language: Haskell2010
 
 test-suite notes-lsp-test
@@ -219,6 +227,7 @@ test-suite notes-lsp-test
   main-is: Main.hs
   other-modules:
       ASTSpec
+      Data.Rope.UtilsSpec
       LineIndexSpec
       ServerSpec
       Spec
@@ -272,6 +281,7 @@ test-suite notes-lsp-test
     , commonmark-extensions
     , commonmark-pandoc
     , containers
+    , data-default
     , directory
     , dlist
     , fgl
@@ -304,4 +314,5 @@ test-suite notes-lsp-test
     , unliftio-core
     , unordered-containers
     , vector
+    , yaml
   default-language: Haskell2010
