@@ -168,11 +168,11 @@ textDocumentDefinition = requestHandler LSP.STextDocumentDefinition $ \req -> do
   let params = req ^. LSP.params
       span = params ^. Proto.pos . to Span.empty
   note <- getNote params
-  let astElem = Unsafe.fromJust $ AST.containingElement span (note ^. #ast)
+  astElem <- AST.containingElement span (note ^. #ast) & Utils.fromJustMsg "Could not find ast element under cursor"
   dest <- case astElem ^. L._1 of
     AST.LinkElement AST.WikiLink {dest} -> pure dest
     _ -> Exception.throwString "No link under the cursor"
-  destNoteId <- L.use (#nameToNote . L.at dest) >>= Utils.fromJustMsg "Could not find destination of like"
+  destNoteId <- L.use (#nameToNote . L.at dest) >>= Utils.fromJustMsg "Could not find destination of link"
   destNote <- gets $ State.getNote destNoteId
   let destNoteUri = destNote ^. #path . L.to Proto.normalizedFilePathToUri
   debugM "handlers" ("destNoteUri: " ++ show destNoteUri)

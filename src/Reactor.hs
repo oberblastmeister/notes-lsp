@@ -12,7 +12,7 @@
 -- To try out this server, install it with
 -- > cabal install lsp-demo-reactor-server -fdemo
 -- and plug it into your client of choice.
-module Reactor (main) where
+module Reactor (main, newServerDefinition) where
 
 import qualified Config
 import Control.Lens
@@ -24,6 +24,7 @@ import qualified Handlers
 import qualified Language.LSP.Server as Server
 import qualified Language.LSP.Types as Handlers
 import qualified Language.LSP.Types as LSP
+import Logging
 import MyPrelude
 import qualified Path
 import qualified Path.IO as PIO
@@ -31,14 +32,13 @@ import ReactorMsg
 import State (ServerM, ServerState)
 import qualified State
 import qualified System.Exit as Exit
-import Logging
 import qualified System.Log.Logger as Logger
+import UnliftIO.Async (async)
 import qualified UnliftIO.Exception as E
 import qualified UnliftIO.Exception as Exception
 import UnliftIO.IORef as IORef
 import UnliftIO.STM (TQueue)
 import qualified UnliftIO.STM as STM
-import UnliftIO.Async (async)
 
 main :: IO ()
 main = do
@@ -47,25 +47,40 @@ main = do
     c -> Exit.exitWith . Exit.ExitFailure $ c
 
 run :: IO Int
-run = flip E.catches handlers $ do
+run =
+  flip E.catches handlers $
+    newServerDefinition >>= runServer
+  where
+    handlers =
+      [ E.Handler ioExcept,
+        E.Handler someExcept
+      ]
+    ioExcept (e :: E.IOException) = print e >> return 1
+    someExcept (e :: E.SomeException) = print e >> return 1
+
+newServerDefinition :: IO Config.ServerDefinition
+newServerDefinition = do
   rChan <- STM.atomically STM.newTQueue
   stChan <- STM.atomically STM.newTQueue
   defSt <- IORef.newIORef State.def
 
-  let serverDefinition =
-        Server.ServerDefinition
-          { defaultConfig = Config.def,
-            onConfigurationChange = \_old v -> do
-              case Aeson.fromJSON v of
-                Aeson.Error e -> Left (T.pack e)
-                Aeson.Success cfg -> Right cfg,
-            doInitialize = \env _ -> do
-              async $ runReaderT (reactor stChan rChan) defSt
-              pure $ Right env,
-            staticHandlers = lspHandlers stChan rChan,
-            interpretHandler = \env -> Server.Iso (State.runServer defSt env) liftIO,
-            options = lspOptions
-          }
+  pure $
+    Server.ServerDefinition
+      { defaultConfig = Config.def,
+        onConfigurationChange = \_old v -> do
+          case Aeson.fromJSON v of
+            Aeson.Error e -> Left (T.pack e)
+            Aeson.Success cfg -> Right cfg,
+        doInitialize = \env _ -> do
+          async $ runReaderT (reactor stChan rChan) defSt
+          pure $ Right env,
+        staticHandlers = lspHandlers stChan rChan,
+        interpretHandler = \env -> Server.Iso (State.runServer defSt env) liftIO,
+        options = lspOptions
+      }
+
+runServer :: Config.ServerDefinition -> IO Int
+runServer serverDefinition = do
   Exception.finally
     ( Exception.catchAny
         ( do
@@ -78,13 +93,6 @@ run = flip E.catches handlers $ do
         )
     )
     Logger.removeAllHandlers
-  where
-    handlers =
-      [ E.Handler ioExcept,
-        E.Handler someExcept
-      ]
-    ioExcept (e :: E.IOException) = print e >> return 1
-    someExcept (e :: E.SomeException) = print e >> return 1
 
 setupLogger :: IO ()
 setupLogger = do

@@ -39,8 +39,8 @@ unsafeNew = Span
 
 new :: Pos -> Pos -> Span
 new start@Pos {line, col} end@Pos {line = line', col = col'} =
-  let !_ = if line <= line' then () else error "Data.Span.new: start line must be less end line"
-      !_ = if col <= col' then () else error "Data.Span.new: start col must be less than end col"
+  let !_ = line > line' && error "Data.Span.new: start line must be less than or equal to end line"
+      !_ = line /= line' || col > col' && error "Data.Span.new: start col must be less than end col when line is the same"
    in Span {start, end}
 
 new' :: Int -> Int -> Int -> Int -> Span

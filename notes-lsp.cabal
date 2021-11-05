@@ -122,10 +122,10 @@ library
     , path
     , path-io
     , pretty-simple
-    , raw-strings-qq
     , relude
     , rope-utf16-splay
     , split
+    , string-interpolate
     , text
     , transformers
     , unliftio
@@ -209,10 +209,10 @@ executable notes-lsp
     , path
     , path-io
     , pretty-simple
-    , raw-strings-qq
     , relude
     , rope-utf16-splay
     , split
+    , string-interpolate
     , text
     , transformers
     , unliftio
@@ -228,6 +228,7 @@ test-suite notes-lsp-test
   other-modules:
       ASTSpec
       Data.Rope.UtilsSpec
+      Data.SpanSpec
       LineIndexSpec
       ServerSpec
       Spec
@@ -304,10 +305,10 @@ test-suite notes-lsp-test
     , path
     , path-io
     , pretty-simple
-    , raw-strings-qq
     , relude
     , rope-utf16-splay
     , split
+    , string-interpolate
     , text
     , transformers
     , unliftio

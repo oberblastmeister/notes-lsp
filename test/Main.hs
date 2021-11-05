@@ -11,7 +11,6 @@ import qualified Markdown.Parsing
 import MyPrelude
 import qualified Spec
 import Text.Pretty.Simple
-import Text.RawString.QQ
 import qualified Prelude as P
 
 main :: IO ()

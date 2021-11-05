@@ -5,6 +5,7 @@ module Config
     def,
     LanguageContextEnv,
     MonadLsp,
+    ServerDefinition,
   )
 where
 
@@ -15,6 +16,8 @@ import MyPrelude
 type MonadLsp m = Server.MonadLsp Config m
 
 type LanguageContextEnv = Server.LanguageContextEnv Config
+
+type ServerDefinition = Server.ServerDefinition Config
 
 data Config = Config {fooTheBar :: !Bool, wibbleFactor :: !Int}
   deriving (Generic, Show, Aeson.ToJSON, Aeson.FromJSON)
