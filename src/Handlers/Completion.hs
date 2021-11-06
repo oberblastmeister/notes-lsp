@@ -33,11 +33,12 @@ handler = requestHandler LSP.STextDocumentCompletion $ \req -> do
   -- uri = params ^. LSP.textDocument . LSP.uri . L.to LSP.toNormalizedUri
   note@Note {ast, rope} <- getNote params
   let pos = params ^. Proto.pos
-  let res = LSP.InL $ case getCompletionAction pos cx ast rope of
-        CompleteLinks -> completeLinks
-        CompleteTags -> completeTags
-        CompleteNone -> mempty
-  pure res
+  pure undefined
+  -- pure $
+  --   LSP.InL $ case getCompletionAction pos cx ast rope of
+  --     CompleteLinks -> completeLinks
+  --     CompleteTags -> completeTags
+  --     CompleteNone -> mempty
 
 -- pure $ LSP.InL mempty
 
@@ -74,3 +75,5 @@ getCompletionAction pos cx ast rope =
         then Rope.getRange (Range.new (offset - 2) offset) rope ^? L._Just . Rope.text
         else Nothing
     twoInfront = Rope.getRange (Range.new offset (offset + 2)) rope ^? L._Just . Rope.text
+
+-- !_ = error "what"

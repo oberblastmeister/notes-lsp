@@ -1,5 +1,6 @@
 module Handlers.Utils where
 
+import Control.Concurrent (forkIO)
 import qualified Control.Lens as L
 import Control.Lens.Operators
 import qualified Data.Text as T
@@ -13,7 +14,7 @@ import qualified Relude.Unsafe as Unsafe
 import State (Note, ServerM)
 import qualified State
 import qualified Text.Show
-import UnliftIO (async)
+import UnliftIO (async, wait)
 import qualified UnliftIO.Exception as Exception
 import qualified UnliftIO.IORef as IORef
 
@@ -44,12 +45,12 @@ requestHandler ::
 requestHandler smethod fn = do
   Server.requestHandler smethod $ \msg k -> do
     st <- get
-    env <- Server.getLspEnv
     let act = fn msg
+    env <- Server.getLspEnv
     void $
       async $ do
         stRef <- IORef.newIORef st
-        res <-
+        !res <-
           State.runServer stRef env act & Exception.tryAny
             >>= \case
               Left e -> do
