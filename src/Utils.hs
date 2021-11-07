@@ -6,11 +6,14 @@ module Utils
     findUntil,
     fromJustMsg,
     intoException,
+    async',
   )
 where
 
 import MyPrelude
 import qualified Path.IO as PIO
+import UnliftIO (Async, async)
+import qualified UnliftIO.Concurrent as Concurrent
 import qualified UnliftIO.Exception as Exception
 
 scanl'' :: (b -> a -> b) -> b -> [a] -> [b]
@@ -50,3 +53,16 @@ intoException m = do
   case res of
     Left e -> Exception.throwString $ show e
     Right x -> pure x
+
+-- test :: ghc-prim-0.6.1:GHC.Types.Any a
+-- -> ghc-prim-0.6.1:GHC.Types.Any
+--      (async-2.2.4:Control.Concurrent.Async.Async a)
+-- test = async
+
+-- | async but will propagate exceptions to the parent thread
+-- | This means that the monadic action cannot return anything
+-- | to the parent thread.
+async' :: MonadUnliftIO m => m () -> m (Async ())
+async' m = do
+  tid <- Concurrent.myThreadId
+  async $ m `Exception.catchAny` Concurrent.throwTo tid

@@ -15,6 +15,7 @@ import State (Note, ServerM)
 import qualified State
 import qualified Text.Show
 import UnliftIO (async, wait)
+import qualified UnliftIO.Concurrent as Concurrent
 import qualified UnliftIO.Exception as Exception
 import qualified UnliftIO.IORef as IORef
 
@@ -47,23 +48,26 @@ requestHandler smethod fn = do
     st <- get
     let act = fn msg
     env <- Server.getLspEnv
+    tid <- Concurrent.myThreadId
+    print tid
     void $
-      async $ do
-        stRef <- IORef.newIORef st
-        !res <-
-          State.runServer stRef env act & Exception.tryAny
-            >>= \case
-              Left e -> do
-                errorM "handlers" ("An exception occured inside of a request handler: " ++ Text.Show.show e)
-                pure $
-                  Left $
-                    LSP.ResponseError
-                      { _code = LSP.UnknownErrorCode,
-                        _message = T.pack $ Text.Show.show e,
-                        _xdata = Nothing
-                      }
-              Right x -> pure $ Right x
-        State.runServer stRef env (k res)
+      async $
+        flip Exception.catchAny ({- don't swallow exceptions -} Exception.throwTo (st ^. #tid)) $ do
+          stRef <- IORef.newIORef st
+          !res <-
+            State.runServer stRef env act & Exception.tryAny
+              >>= \case
+                Left e -> do
+                  errorM "handlers" ("An exception occured inside of a request handler: " ++ Text.Show.show e)
+                  pure $
+                    Left $
+                      LSP.ResponseError
+                        { _code = LSP.UnknownErrorCode,
+                          _message = T.pack $ Text.Show.show e,
+                          _xdata = Nothing
+                        }
+                Right !x -> pure $ Right x
+          State.runServer stRef env (k res)
 
 getNoteId ::
   ( LSP.HasTextDocument a b,

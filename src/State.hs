@@ -12,6 +12,8 @@ module State
     changeNote,
     updateNoteGraph,
     Note (..),
+    newServerState,
+    unsafeServerStateNoTid,
   )
 where
 
@@ -38,6 +40,7 @@ import MyPrelude
 import qualified Relude.Unsafe as Unsafe
 import qualified System.FilePath as FilePath
 import qualified Text.Show
+import qualified UnliftIO.Concurrent as Concurrent
 import qualified UnliftIO.IORef as IORef
 
 newtype ServerM a = ServerM {unServer :: ReaderT (IORef ServerState) (LspM Config) a}
@@ -78,7 +81,9 @@ data ServerState = ServerState
     notes :: IntMap Note,
     noteGraph :: Gr () Connection,
     -- amount of notes
-    size :: !Int
+    size :: !Int,
+    -- the thread id where the server was started in
+    tid :: !Concurrent.ThreadId
   }
   deriving (Generic)
 
@@ -88,16 +93,19 @@ instance Show ServerState where
       ++ Text.Show.show nameToNote
       ++ Text.Show.show noteGraph
 
-instance Default ServerState where
-  def :: ServerState
-  def =
-    ServerState
-      { pathToNote = HashMap.empty,
-        nameToNote = HashMap.empty,
-        notes = IntMap.empty,
-        noteGraph = Graph.empty,
-        size = 0
-      }
+unsafeServerStateNoTid :: ServerState
+unsafeServerStateNoTid = newServerState $ error "BUG: Cannot access the thread id!"
+
+newServerState :: Concurrent.ThreadId -> ServerState
+newServerState tid =
+  ServerState
+    { pathToNote = HashMap.empty,
+      nameToNote = HashMap.empty,
+      notes = IntMap.empty,
+      noteGraph = Graph.empty,
+      size = 0,
+      tid
+    }
 
 data Note = Note
   { ast :: AST,

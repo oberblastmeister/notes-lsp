@@ -3,7 +3,46 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    size: 155021
+    subdir: lsp
+    url: https://github.com/haskell/lsp/archive/0f389b5d6f405df31f7b40195111ef96768ec5ca.tar.gz
+    name: lsp
+    version: 1.2.0.1
+    sha256: 13e3f7e1d0bdb72596ef275a8a7dff4f41a8a1d532dd8345d8c90cffaff7682d
+    pantry-tree:
+      size: 1417
+      sha256: a95e85fb037979249717ceb1eab14b3fe850663307d28244073e9e4bc9487354
+  original:
+    subdir: lsp
+    url: https://github.com/haskell/lsp/archive/0f389b5d6f405df31f7b40195111ef96768ec5ca.tar.gz
+- completed:
+    size: 155021
+    subdir: lsp-types
+    url: https://github.com/haskell/lsp/archive/0f389b5d6f405df31f7b40195111ef96768ec5ca.tar.gz
+    name: lsp-types
+    version: 1.3.0.1
+    sha256: 13e3f7e1d0bdb72596ef275a8a7dff4f41a8a1d532dd8345d8c90cffaff7682d
+    pantry-tree:
+      size: 4148
+      sha256: c7f878973842dbe88aaa143a58a6a762ec01b49f524351fd83a63ddf3bbcdd5a
+  original:
+    subdir: lsp-types
+    url: https://github.com/haskell/lsp/archive/0f389b5d6f405df31f7b40195111ef96768ec5ca.tar.gz
+- completed:
+    size: 155021
+    subdir: lsp-test
+    url: https://github.com/haskell/lsp/archive/0f389b5d6f405df31f7b40195111ef96768ec5ca.tar.gz
+    name: lsp-test
+    version: 0.14.0.1
+    sha256: 13e3f7e1d0bdb72596ef275a8a7dff4f41a8a1d532dd8345d8c90cffaff7682d
+    pantry-tree:
+      size: 2061
+      sha256: 51d0f8dec6d1102cf839b7f72dd899ececa1de8a79867ed2a63851a971f0e849
+  original:
+    subdir: lsp-test
+    url: https://github.com/haskell/lsp/archive/0f389b5d6f405df31f7b40195111ef96768ec5ca.tar.gz
 snapshots:
 - completed:
     size: 586069

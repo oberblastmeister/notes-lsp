@@ -33,12 +33,19 @@ import State (ServerM, ServerState)
 import qualified State
 import qualified System.Exit as Exit
 import qualified System.Log.Logger as Logger
-import UnliftIO.Async (async)
-import qualified UnliftIO.Exception as E
+import qualified Text.Show
+import UnliftIO (async)
+import qualified UnliftIO.Concurrent as Concurrent
 import qualified UnliftIO.Exception as Exception
 import UnliftIO.IORef as IORef
 import UnliftIO.STM (TQueue)
 import qualified UnliftIO.STM as STM
+
+newtype ReactorException = ReactorException SomeException
+  deriving (Typeable, Exception)
+
+instance Text.Show.Show ReactorException where
+  show (ReactorException e) = "Reactor exception: " ++ show e
 
 main :: IO ()
 main = do
@@ -48,21 +55,22 @@ main = do
 
 run :: IO Int
 run =
-  flip E.catches handlers $
+  flip Exception.catches handlers $
     newServerDefinition >>= runServer
   where
     handlers =
-      [ E.Handler ioExcept,
-        E.Handler someExcept
+      [ Exception.Handler ioExcept,
+        Exception.Handler someExcept
       ]
-    ioExcept (e :: E.IOException) = print e >> return 1
-    someExcept (e :: E.SomeException) = print e >> return 1
+    ioExcept (e :: Exception.IOException) = print e >> return 1
+    someExcept (e :: Exception.SomeException) = print e >> return 1
 
 newServerDefinition :: IO Config.ServerDefinition
 newServerDefinition = do
   rChan <- STM.atomically STM.newTQueue
   stChan <- STM.atomically STM.newTQueue
-  defSt <- IORef.newIORef State.def
+  tid <- Concurrent.myThreadId
+  defSt <- IORef.newIORef $ State.newServerState tid
 
   pure $
     Server.ServerDefinition
@@ -72,7 +80,9 @@ newServerDefinition = do
             Aeson.Error e -> Left (T.pack e)
             Aeson.Success cfg -> Right cfg,
         doInitialize = \env _ -> do
-          async $ runReaderT (reactor stChan rChan) defSt
+          async $
+            runReaderT (reactor stChan rChan) defSt
+              `Exception.catchAny` (Exception.throwTo tid . ReactorException)
           pure $ Right env,
         staticHandlers = lspHandlers stChan rChan,
         interpretHandler = \env -> Server.Iso (State.runServer defSt env) liftIO,
@@ -138,6 +148,7 @@ reactor = reactor'
 reactor' :: (MonadReactor m) => TQueue ServerState -> TQueue ReactorAct -> m ()
 reactor' stChan rChan = do
   debugM "reactor" "Started the reactor"
+  Concurrent.myThreadId >>= print
   forever $ do
     msg <-
       select
