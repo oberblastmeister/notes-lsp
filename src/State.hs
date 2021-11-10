@@ -9,11 +9,11 @@ module State
     getNote,
     getName,
     newNote,
-    changeNote,
+    applyNewRope,
     updateNoteGraph,
     Note (..),
-    newServerState,
-    unsafeServerStateNoTid,
+    Responder,
+    forkState,
   )
 where
 
@@ -40,7 +40,6 @@ import MyPrelude
 import qualified Relude.Unsafe as Unsafe
 import qualified System.FilePath as FilePath
 import qualified Text.Show
-import qualified UnliftIO.Concurrent as Concurrent
 import qualified UnliftIO.IORef as IORef
 
 newtype ServerM a = ServerM {unServer :: ReaderT (IORef ServerState) (LspM Config) a}
@@ -72,53 +71,60 @@ instance MonadState ServerState ServerM where
     ref <- ask
     IORef.writeIORef ref a
 
+type Responder r = Either LSP.ResponseError r -> ServerM ()
+
 runServer :: MonadIO m => IORef ServerState -> Config.LanguageContextEnv -> ServerM a -> m a
 runServer st env m = unServer m & (`runReaderT` st) & Server.runLspT env & liftIO
 
+-- | Seed the monad with a state
+-- | The monad will not actually modify the resulting state,
+-- | the seed state is just to run the monad
+forkState :: ServerState -> ServerM a -> ServerM a
+forkState st m = do
+  env <- Server.getLspEnv
+  stRef <- IORef.newIORef st
+  runServer stRef env m
+  
 data ServerState = ServerState
   { pathToNote :: HashMap LSP.NormalizedFilePath Int,
     nameToNote :: HashMap Text Int,
     notes :: IntMap Note,
     noteGraph :: Gr () Connection,
     -- amount of notes
-    size :: !Int,
-    -- the thread id where the server was started in
-    tid :: !Concurrent.ThreadId
+    size :: !Int
   }
   deriving (Generic)
-
+  
 instance Show ServerState where
   show ServerState {pathToNote, nameToNote, noteGraph} =
     Text.Show.show pathToNote
       ++ Text.Show.show nameToNote
       ++ Text.Show.show noteGraph
 
-unsafeServerStateNoTid :: ServerState
-unsafeServerStateNoTid = newServerState $ error "BUG: Cannot access the thread id!"
-
-newServerState :: Concurrent.ThreadId -> ServerState
-newServerState tid =
-  ServerState
-    { pathToNote = HashMap.empty,
-      nameToNote = HashMap.empty,
-      notes = IntMap.empty,
-      noteGraph = Graph.empty,
-      size = 0,
-      tid
-    }
+instance Default ServerState where
+  def =
+    ServerState
+      { pathToNote = HashMap.empty,
+        nameToNote = HashMap.empty,
+        notes = IntMap.empty,
+        noteGraph = Graph.empty,
+        size = 0
+      }
 
 data Note = Note
   { ast :: AST,
     rope :: Rope,
     name :: Text,
     path :: LSP.NormalizedFilePath,
-    lineIndex :: LineIndex,
-    id :: Int
+    lineIndex :: LineIndex
   }
   deriving (Show, Generic)
 
 data LinkKind = Normal | Folgezettel
   deriving (Show, Eq, Generic)
+
+-- combine :: ServerState -> ServerState -> [Note]
+-- combine st st' = st ^.. #notes . L.each
 
 updateNote :: MonadState ServerState m => Note -> m Int
 updateNote note = do
@@ -128,14 +134,14 @@ updateNote note = do
   case maybeId of
     Nothing -> do
       newId <- L.use #size
-      #notes . L.at newId ?= (note & #id .~ newId)
+      #notes . L.at newId ?= note
       #size += 1
       #nameToNote . L.at name ?= newId
       #pathToNote . L.at nPath ?= newId
       #noteGraph %= Graph.insNode (newId, ())
       pure newId
     Just it -> do
-      #notes . L.at it ?= (note & #id .~ it)
+      #notes . L.at it ?= note
       pure it
 
 getNote :: Int -> ServerState -> Note
@@ -155,15 +161,15 @@ newNote nPath rope = do
       name = getName path
       lineIndex = LineIndex.new text
   ast <- liftEither $ Markdown.Parsing.parseAST path text
-  let note = Note {ast, rope, name, path = nPath, lineIndex, id = error "id not initialized yet"}
+  let note = Note {ast, rope, name, path = nPath, lineIndex}
   updateNote note
 
-changeNote ::
+applyNewRope ::
   (MonadState ServerState m, MonadError Text m) =>
   LSP.NormalizedFilePath ->
   Rope ->
   m ()
-changeNote nPath rope = do
+applyNewRope nPath rope = do
   noteId <- newNote nPath rope
   updateNoteGraph noteId
 
@@ -173,6 +179,7 @@ updateNoteGraph noteId = do
   forM_ (note ^. #ast . #elems) $ \(astElement, _sp) -> case astElement of
     AST.LinkElement link -> do
       whenJustM
+        -- this should be find dest or something
         (L.use (#nameToNote . L.at (link ^. #dest)))
         ( \toId -> do
             #noteGraph %= Graph.insEdge (noteId, toId, link ^. #conn)

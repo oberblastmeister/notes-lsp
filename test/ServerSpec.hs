@@ -46,7 +46,7 @@ spec = do
     doc <- LSP.Test.createDoc "test.md" "markdown" "hello world!"
     LSP.Test.applyEdit doc (insertEdit 0 0 "[[")
     completions <- LSP.Test.getCompletions doc (LSP.Position 0 0)
-    -- putStrLn $ "Completions: " ++ show completions
+    putStrLn $ "Completions: " ++ show completions
     return ()
 
   return ()

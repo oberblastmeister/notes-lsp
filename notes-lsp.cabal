@@ -226,10 +226,11 @@ test-suite notes-lsp-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
-      ASTSpec
       Data.Rope.UtilsSpec
       Data.SpanSpec
       LineIndexSpec
+      Markdown.ASTSpec
+      PositionDSL
       ServerSpec
       Spec
       Paths_notes_lsp

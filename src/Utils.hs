@@ -65,4 +65,9 @@ intoException m = do
 async' :: MonadUnliftIO m => m () -> m (Async ())
 async' m = do
   tid <- Concurrent.myThreadId
-  async $ m `Exception.catchAny` Concurrent.throwTo tid
+  async $
+    Exception.catchSyncOrAsync
+      @_
+      @SomeException
+      m
+      (Concurrent.throwTo tid)

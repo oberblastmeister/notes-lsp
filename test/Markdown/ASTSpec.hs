@@ -1,4 +1,4 @@
-module ASTSpec (spec) where
+module Markdown.ASTSpec (spec) where
 
 import MyPrelude
 import Test.Hspec

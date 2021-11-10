@@ -33,7 +33,8 @@ handler = requestHandler LSP.STextDocumentCompletion $ \req -> do
   -- uri = params ^. LSP.textDocument . LSP.uri . L.to LSP.toNormalizedUri
   note@Note {ast, rope} <- getNote params
   let pos = params ^. Proto.pos
-  pure undefined
+  -- pure $ LSP.InL mempty
+  pure $ LSP.InL mempty
   -- pure $
   --   LSP.InL $ case getCompletionAction pos cx ast rope of
   --     CompleteLinks -> completeLinks

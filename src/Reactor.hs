@@ -70,7 +70,7 @@ newServerDefinition = do
   rChan <- STM.atomically STM.newTQueue
   stChan <- STM.atomically STM.newTQueue
   tid <- Concurrent.myThreadId
-  defSt <- IORef.newIORef $ State.newServerState tid
+  defSt <- IORef.newIORef State.def
 
   pure $
     Server.ServerDefinition
@@ -80,9 +80,12 @@ newServerDefinition = do
             Aeson.Error e -> Left (T.pack e)
             Aeson.Success cfg -> Right cfg,
         doInitialize = \env _ -> do
-          async $
-            runReaderT (reactor stChan rChan) defSt
-              `Exception.catchAny` (Exception.throwTo tid . ReactorException)
+          void $
+            async $
+              runReaderT (reactor stChan rChan) defSt
+                -- if async exceptions come up we still want to propage them to the main thread
+                -- cannot use Utils.async' here because the thread id is different
+                `Exception.catchSyncOrAsync` (Exception.throwTo tid . ReactorException)
           pure $ Right env,
         staticHandlers = lspHandlers stChan rChan,
         interpretHandler = \env -> Server.Iso (State.runServer defSt env) liftIO,
@@ -136,9 +139,6 @@ lspOptions =
 -- LSP client, so they can be sent to the backend compiler one at a time, and a
 -- reply sent.
 
-select :: MonadIO m => [STM a] -> m a
-select = STM.atomically . Monad.msum
-
 -- | The single point that all events flow through, allowing management of state
 -- to stitch replies and requests together from the two asynchronous sides: lsp
 -- server and backend compiler
@@ -148,10 +148,9 @@ reactor = reactor'
 reactor' :: (MonadReactor m) => TQueue ServerState -> TQueue ReactorAct -> m ()
 reactor' stChan rChan = do
   debugM "reactor" "Started the reactor"
-  Concurrent.myThreadId >>= print
   forever $ do
     msg <-
-      select
+      (STM.atomically . Monad.msum)
         [ STM.readTQueue rChan <&> ReactorMsgAct,
           STM.readTQueue stChan <&> ReactorMsgInitState
         ]

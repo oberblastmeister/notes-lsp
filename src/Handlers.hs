@@ -120,7 +120,7 @@ textDocumentDidOpen = notificationHandler LSP.STextDocumentDidOpen $ \msg -> do
   case vf of
     Just (VFS.VirtualFile _ _ rope) -> do
       let path = doc ^. L.to (Unsafe.fromJust . LSP.uriToNormalizedFilePath)
-      Utils.intoException $ State.changeNote path rope
+      Utils.intoException $ State.applyNewRope path rope
     Nothing -> do
       debugM "handlers" $ "Didn't find anything in the VFS for: " ++ show doc
 
@@ -137,7 +137,7 @@ textDocumentDidChange = notificationHandler LSP.STextDocumentDidChange $ \msg ->
   case vf of
     Just (VFS.VirtualFile _ _ rope) -> do
       let path = doc ^. L.to (Unsafe.fromJust . LSP.uriToNormalizedFilePath)
-      Utils.intoException $ State.changeNote path rope
+      Utils.intoException $ State.applyNewRope path rope
     Nothing -> do
       debugM "handlers" $ "Didn't find anything in the VFS for: " ++ show doc
 
@@ -264,7 +264,10 @@ initializeState' stChan root = do
                 Left e -> pure Nothing
                 Right noteId -> pure $ Just noteId
           debugM "handlers" ("Got noteIds" ++ show noteIds)
+          -- we have to update the noteGraph after inserting all the notes inside
+          -- because when updating the noteGraph some notes may not be inside yet,
+          -- causing the graph connections to not be able to be made
           forM_ noteIds State.updateNoteGraph
       )
-      State.unsafeServerStateNoTid -- Important, threadid must not be used here
+      State.def
   atomically $ STM.writeTQueue stChan st
