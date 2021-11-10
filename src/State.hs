@@ -14,6 +14,7 @@ module State
     Note (..),
     Responder,
     forkState,
+    combine,
   )
 where
 
@@ -85,6 +86,15 @@ forkState st m = do
   stRef <- IORef.newIORef st
   runServer stRef env m
   
+-- | Used to prefer the first ServerState when combine two ServerState
+-- | Useful when one server state is calculated concurrently, but the current ServerState
+-- | Is the one we have already
+combine :: ServerState -> ServerState -> ServerState
+combine st st' = do
+  flip execState st $ do
+    noteIds <- forM (st' ^.. #notes . L.each) updateNote
+    forM_ noteIds updateNoteGraph
+
 data ServerState = ServerState
   { pathToNote :: HashMap LSP.NormalizedFilePath Int,
     nameToNote :: HashMap Text Int,

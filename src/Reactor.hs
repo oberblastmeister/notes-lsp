@@ -142,11 +142,8 @@ lspOptions =
 -- | The single point that all events flow through, allowing management of state
 -- to stitch replies and requests together from the two asynchronous sides: lsp
 -- server and backend compiler
-reactor :: TQueue ServerState -> TQueue ReactorAct -> ReactorM
-reactor = reactor'
-
-reactor' :: (MonadReactor m) => TQueue ServerState -> TQueue ReactorAct -> m ()
-reactor' stChan rChan = do
+reactor :: (MonadReactor m) => TQueue ServerState -> TQueue ReactorAct -> m ()
+reactor stChan rChan = do
   debugM "reactor" "Started the reactor"
   forever $ do
     msg <-
@@ -156,12 +153,13 @@ reactor' stChan rChan = do
         ]
     case msg of
       ReactorMsgAct ReactorAct {act, env} -> do
-        st <- ask
-        State.runServer st env act
+        stRef <- ask
+        State.runServer stRef env act
       ReactorMsgInitState newSt -> do
-        st <- ask
+        stRef <- ask
         debugM "reactor" ("Got st:\n" ++ show newSt)
-        IORef.writeIORef st newSt
+        -- notes already in memory have higher precedence than the notes recieved
+        IORef.modifyIORef stRef (`State.combine` newSt)
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as
 -- input into the reactor
