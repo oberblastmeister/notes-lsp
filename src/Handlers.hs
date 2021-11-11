@@ -85,30 +85,30 @@ initialized stChan = notificationHandler LSP.SInitialized $ \_msg -> do
           act
         else void $ async act
 
--- We're initialized! Lets send a showMessageRequest now
--- let params =
---       LSP.ShowMessageRequestParams
---         LSP.MtWarning
---         "What's your favourite language extension?"
---         (Just [LSP.MessageActionItem "Rank2Types", LSP.MessageActionItem "NPlusKPatterns"])
+  -- We're initialized! Lets send a showMessageRequest now
+  let params =
+        LSP.ShowMessageRequestParams
+          LSP.MtWarning
+          "What's your favourite language extension?"
+          (Just [LSP.MessageActionItem "Rank2Types", LSP.MessageActionItem "NPlusKPatterns"])
 
--- void $
---   Server.sendRequest LSP.SWindowShowMessageRequest params $ \case
---     Left e -> errorM "handlers" $ "Got an error: " ++ show e
---     Right _ -> do
---       Server.sendNotification LSP.SWindowShowMessage $ LSP.ShowMessageParams LSP.MtInfo "Excellent choice"
+  void $
+    Server.sendRequest LSP.SWindowShowMessageRequest params $ \case
+      Left e -> errorM "handlers" $ "Got an error: " ++ show e
+      Right _ -> do
+        Server.sendNotification LSP.SWindowShowMessage $ LSP.ShowMessageParams LSP.MtInfo "Excellent choice"
 
---       -- We can dynamically register a capability once the user accepts it
---       Server.sendNotification LSP.SWindowShowMessage $ LSP.ShowMessageParams LSP.MtInfo "Turning on code lenses dynamically"
+        -- We can dynamically register a capability once the user accepts it
+        Server.sendNotification LSP.SWindowShowMessage $ LSP.ShowMessageParams LSP.MtInfo "Turning on code lenses dynamically"
 
---       let regOpts = LSP.CodeLensRegistrationOptions Nothing Nothing (Just False)
+        let regOpts = LSP.CodeLensRegistrationOptions Nothing Nothing (Just False)
 
---       void $
---         Server.registerCapability LSP.STextDocumentCodeLens regOpts $ \_req responder -> do
---           debugM "handlers" "Processing a textDocument/codeLens request"
---           let cmd = LSP.Command "Say hello" "lsp-hello-command" Nothing
---               rsp = LSP.List [LSP.CodeLens (LSP.mkRange 0 0 0 100) (Just cmd) Nothing]
---           responder (Right rsp)
+        void $
+          Server.registerCapability LSP.STextDocumentCodeLens regOpts $ \_req responder -> do
+            debugM "handlers" "Processing a textDocument/codeLens request"
+            let cmd = LSP.Command "Say hello" "lsp-hello-command" Nothing
+                rsp = LSP.List [LSP.CodeLens (LSP.mkRange 0 0 0 100) (Just cmd) Nothing]
+            responder (Right rsp)
 
 workspaceDidChangeConfiguration :: Handlers
 workspaceDidChangeConfiguration = notificationHandler LSP.SWorkspaceDidChangeConfiguration $ \msg -> do
