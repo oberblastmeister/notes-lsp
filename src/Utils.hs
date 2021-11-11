@@ -7,6 +7,9 @@ module Utils
     fromJustMsg,
     intoException,
     async',
+    fromLeft',
+    fromRight',
+    fromRightShow'
   )
 where
 
@@ -71,3 +74,15 @@ async' m = do
       @SomeException
       m
       (Concurrent.throwTo tid)
+
+fromLeft' :: HasCallStack => Either a b -> a
+fromLeft' (Left a) = a
+fromLeft' (Right _b) = error "Utils.fromLeft': Got right"
+
+fromRight' :: HasCallStack => Either a b -> b
+fromRight' (Right b) = b
+fromRight' (Left _a) = error "Utils.fromRight': Got left but expected right"
+
+fromRightShow' :: (HasCallStack, Show a) => Either a b -> b
+fromRightShow' (Right b) = b
+fromRightShow' (Left a) = error $ "Utils.fromRight': Expected right but got " <> show a

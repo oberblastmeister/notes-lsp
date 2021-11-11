@@ -80,12 +80,11 @@ newServerDefinition = do
             Aeson.Error e -> Left (T.pack e)
             Aeson.Success cfg -> Right cfg,
         doInitialize = \env _ -> do
-          void $
-            async $
-              runReaderT (reactor stChan rChan) defSt
-                -- if async exceptions come up we still want to propage them to the main thread
-                -- cannot use Utils.async' here because the thread id is different
-                `Exception.catchSyncOrAsync` (Exception.throwTo tid . ReactorException)
+          async $
+            runReaderT (reactor stChan rChan) defSt
+              -- if async exceptions come up we still want to propage them to the main thread
+              -- cannot use Utils.async' here because the thread id is different
+              `Exception.catchSyncOrAsync` (Exception.throwTo tid . ReactorException)
           pure $ Right env,
         staticHandlers = lspHandlers stChan rChan,
         interpretHandler = \env -> Server.Iso (State.runServer defSt env) liftIO,
@@ -133,23 +132,17 @@ lspOptions =
       Server.completionTriggerCharacters = Just ['[', '#']
     }
 
--- ---------------------------------------------------------------------
-
--- The reactor is a process that serialises and buffers all requests from the
--- LSP client, so they can be sent to the backend compiler one at a time, and a
--- reply sent.
-
--- | The single point that all events flow through, allowing management of state
--- to stitch replies and requests together from the two asynchronous sides: lsp
--- server and backend compiler
 reactor :: (MonadReactor m) => TQueue ServerState -> TQueue ReactorAct -> m ()
 reactor stChan rChan = do
   debugM "reactor" "Started the reactor"
   forever $ do
     msg <-
       (STM.atomically . Monad.msum)
-        [ STM.readTQueue rChan <&> ReactorMsgAct,
-          STM.readTQueue stChan <&> ReactorMsgInitState
+        [ -- stm is not fair, and will always prefer the first action
+          -- since getting the state is always more important than everything else
+          -- we put it first in the list
+          STM.readTQueue stChan <&> ReactorMsgInitState,
+          STM.readTQueue rChan <&> ReactorMsgAct
         ]
     case msg of
       ReactorMsgAct ReactorAct {act, env} -> do
@@ -158,7 +151,6 @@ reactor stChan rChan = do
       ReactorMsgInitState newSt -> do
         stRef <- ask
         debugM "reactor" ("Got st:\n" ++ show newSt)
-        -- notes already in memory have higher precedence than the notes recieved
         IORef.modifyIORef stRef (`State.combine` newSt)
 
 -- | Check if we have a handler, and if we create a haskell-lsp handler to pass it as

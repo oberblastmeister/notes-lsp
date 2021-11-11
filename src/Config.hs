@@ -19,8 +19,13 @@ type LanguageContextEnv = Server.LanguageContextEnv Config
 
 type ServerDefinition = Server.ServerDefinition Config
 
-data Config = Config {fooTheBar :: !Bool, wibbleFactor :: !Int}
+data Config = Config
+  { waitInitializeState :: !Bool
+  }
   deriving (Generic, Show, Aeson.ToJSON, Aeson.FromJSON)
 
 instance Default Config where
-  def = Config {fooTheBar = False, wibbleFactor = 0}
+  def =
+    Config
+      { waitInitializeState = False
+      }

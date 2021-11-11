@@ -50,6 +50,7 @@ library
       Reactor
       ReactorMsg
       State
+      TextLen
       Utils
   other-modules:
       Paths_notes_lsp
@@ -92,6 +93,7 @@ library
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
+      TypeOperators
       TypeFamilies
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -Werror=incomplete-patterns
   build-depends:
@@ -178,6 +180,7 @@ executable notes-lsp
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
+      TypeOperators
       TypeFamilies
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -Werror=incomplete-patterns -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -226,13 +229,21 @@ test-suite notes-lsp-test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
+      Data.MarkedText
+      Data.PositionBuilder
+      Data.PositionBuilderSpec
+      Data.RangedText
       Data.Rope.UtilsSpec
       Data.SpanSpec
+      Handlers.CompletionSpec
+      Handlers.DefinitionSpec
+      Handlers.Spec
+      Language.LSP.Test.Utils
       LineIndexSpec
       Markdown.ASTSpec
-      PositionDSL
       ServerSpec
       Spec
+      Test.Hspec.Lifted
       Paths_notes_lsp
   hs-source-dirs:
       test
@@ -273,6 +284,7 @@ test-suite notes-lsp-test
       OverloadedLabels
       ViewPatterns
       PatternSynonyms
+      TypeOperators
       TypeFamilies
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-unused-do-bind -Werror=incomplete-patterns -threaded -rtsopts -with-rtsopts=-N
   build-depends:
@@ -292,6 +304,7 @@ test-suite notes-lsp-test
     , generic-lens
     , hslogger
     , hspec
+    , hspec-expectations-lifted
     , ixset-typed
     , lens
     , lsp

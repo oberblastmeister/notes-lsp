@@ -96,6 +96,7 @@ default-extensions:
   - OverloadedLabels
   - ViewPatterns
   - PatternSynonyms
+  - TypeOperators
   - TypeFamilies
 
 ghc-options:
@@ -130,5 +131,6 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - hspec
+      - hspec-expectations-lifted
       - lsp-test
       - notes-lsp

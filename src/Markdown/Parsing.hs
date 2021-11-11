@@ -7,10 +7,11 @@ module Markdown.Parsing
   )
 where
 
-import Commonmark (ParseError)
 import qualified Commonmark
 import qualified Commonmark.Extensions
 import qualified Commonmark.Pandoc
+import qualified Data.Aeson as Aeson
+import qualified Data.Yaml as Yaml
 import Markdown.AST (AST)
 import qualified Markdown.AST as AST
 import qualified Markdown.CST as CST
@@ -20,8 +21,6 @@ import qualified Text.Megaparsec as M
 import qualified Text.Megaparsec.Char as M
 import qualified Text.Pandoc.Builder as Pandoc.Builder
 import qualified Text.Parsec as Parsec
-import qualified Data.Aeson as Aeson
-import qualified Data.Yaml as Yaml
 
 type SyntaxSpec m il bl =
   ( SyntaxSpec' m il bl,
@@ -76,39 +75,40 @@ parseAST path input = uncurry AST.makeAST <$> parseCST path input
 
 parseCST :: forall meta. (Aeson.FromJSON meta) => FilePath -> Text -> Either Text (Maybe meta, [CST.Block])
 parseCST path input = do
-  (mMeta, markdown) <- partitionMarkdown path input
+  mMeta <- getFrontMatter path input
   mMetaVal <- first show $ (Yaml.decodeEither' . encodeUtf8) `traverse` mMeta
-  cst <- bimap
-    show
-    toList
-    ( runIdentity
-        ( Commonmark.commonmarkWith
-            @Identity
-            @CST.Inlines
-            @CST.Blocks
-            syntaxSpec
-            path
-            markdown
-        )
-    )
+  cst <-
+    bimap
+      show
+      toList
+      ( runIdentity
+          ( Commonmark.commonmarkWith
+              @Identity
+              @CST.Inlines
+              @CST.Blocks
+              syntaxSpec
+              path
+              input
+          )
+      )
   pure (mMetaVal, cst)
 
-partitionMarkdown :: FilePath -> Text -> Either Text (Maybe Text, Text)
-partitionMarkdown =
-  parse (M.try splitP <|> fmap (Nothing,) M.takeRest)
+getFrontMatter :: FilePath -> Text -> Either Text (Maybe Text)
+getFrontMatter = parse (frontP <|> pure Nothing)
   where
     separatorP :: M.Parsec Void Text ()
-    separatorP =
-      void $ M.string "---" <* M.eol
+    separatorP = void $ M.string "---" <* M.eol
 
-    splitP :: M.Parsec Void Text (Maybe Text, Text)
-    splitP = do
+    frontP :: M.Parsec Void Text (Maybe Text)
+    frontP =
       separatorP
-      a <- toText <$> M.manyTill M.anySingle (M.try $ M.eol *> separatorP)
-      b <- M.takeRest
-      pure (Just a, b)
+        *> ( Just . toText
+               <$> M.manyTill
+                 M.anySingle
+                 (M.try $ M.eol *> separatorP)
+           )
 
     parse :: M.Parsec Void Text a -> String -> Text -> Either Text a
-    parse p fn s =
+    parse p fileName' s =
       first (toText . M.errorBundlePretty) $
-        M.parse (p <* M.eof) fn s
+        M.parse p fileName' s

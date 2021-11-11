@@ -4,16 +4,13 @@ module Handlers.Completion (handler) where
 
 import qualified Control.Lens as L
 import Control.Lens.Operators
-import qualified Data.Maybe as Unsafe
 import Data.Pos (Pos)
-import qualified Data.Pos as Pos
 import qualified Data.Range as Range
 import Data.Rope.UTF16 (Rope)
 import qualified Data.Rope.Utils as Rope
 import qualified Data.Span as Span
 import qualified Data.Text as T
 import Handlers.Utils
-import qualified Language.LSP.Server as Server
 import qualified Language.LSP.Types as LSP
 import Language.LSP.Types.Instances ()
 import qualified Language.LSP.Types.Lens as LSP
@@ -33,7 +30,7 @@ handler = requestHandler LSP.STextDocumentCompletion $ \req -> do
   -- uri = params ^. LSP.textDocument . LSP.uri . L.to LSP.toNormalizedUri
   note@Note {ast, rope} <- getNote params
   let pos = params ^. Proto.pos
-  -- pure $ LSP.InL mempty
+  -- pure undefined
   pure $ LSP.InL mempty
   -- pure $
   --   LSP.InL $ case getCompletionAction pos cx ast rope of

@@ -39,7 +39,7 @@ import Utils (forMaybeM)
 import qualified Utils
 
 allHandlers :: TQueue ServerState -> TQueue ReactorAct -> Handlers
-allHandlers stChan rChan =
+allHandlers stChan _rChan =
   mconcat
     [ initialized stChan,
       workspaceDidChangeConfiguration,
@@ -78,7 +78,12 @@ initialized stChan = notificationHandler LSP.SInitialized $ \_msg -> do
   root <- Server.getRootPath <&> (>>= Path.parseAbsDir)
   folders <- Server.getWorkspaceFolders
   debugM "handlers" "Initializing state"
-  void $ async $ initializeState stChan root folders
+  config <- Server.getConfig
+  let act = initializeState stChan root folders
+   in if config ^. #waitInitializeState
+        then do
+          act
+        else void $ async act
 
 -- We're initialized! Lets send a showMessageRequest now
 -- let params =
@@ -109,8 +114,9 @@ workspaceDidChangeConfiguration :: Handlers
 workspaceDidChangeConfiguration = notificationHandler LSP.SWorkspaceDidChangeConfiguration $ \msg -> do
   cfg <- Server.getConfig
   debugM "configuration changed: " (show (msg, cfg))
-  Server.sendNotification LSP.SWindowShowMessage $
-    LSP.ShowMessageParams LSP.MtInfo $ "Wibble factor set to " <> T.pack (show $ cfg ^. #wibbleFactor)
+
+-- Server.sendNotification LSP.SWindowShowMessage $
+--   LSP.ShowMessageParams LSP.MtInfo $ "Wibble factor set to " <> T.pack (show $ cfg ^. #wibbleFactor)
 
 textDocumentDidOpen :: Handlers
 textDocumentDidOpen = notificationHandler LSP.STextDocumentDidOpen $ \msg -> do
