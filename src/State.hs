@@ -86,6 +86,34 @@ forkState st m = do
   stRef <- IORef.newIORef st
   runServer stRef env m
   
+-- -- this code is very brittle
+-- requestHandler ::
+--   forall (m :: LSP.Method 'LSP.FromClient 'LSP.Request).
+--   LSP.SMethod m ->
+--   HandlerReturn ServerM m ->
+--   Server.Handlers ServerM
+-- requestHandler smethod fn = do
+--   Server.requestHandler smethod $ \msg k -> do
+--     st <- get
+--     let act = fn msg
+--     env <- Server.getLspEnv
+--     void $
+--       async $ do
+--         stRef <- IORef.newIORef st
+--         !res <-
+--           State.runServer stRef env act & Exception.tryAny
+--             >>= \case
+--               Left e -> do
+--                 errorM "handlers" ("An exception occured inside of a request handler: " ++ Text.Show.show e)
+--                 pure $
+--                   Left $
+--                     LSP.ResponseError
+--                       { _code = LSP.UnknownErrorCode,
+--                         _message = T.pack $ Text.Show.show e,
+--                         _xdata = Nothing
+--                       }
+--               Right x -> pure $ Right x
+--         State.runServer stRef env (k res)
 -- | Used to prefer the first ServerState when combine two ServerState
 -- | Useful when one server state is calculated concurrently, but the current ServerState
 -- | Is the one we have already
