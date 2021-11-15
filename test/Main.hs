@@ -15,8 +15,8 @@ import qualified Prelude as P
 
 main :: IO ()
 main = do
-  -- runIndexSet
-  Spec.main
+  runIndexSet
+  -- Spec.main
   -- parseTree
   -- runGroupBy
   return ()
@@ -95,12 +95,12 @@ runIndexSet :: IO ()
 runIndexSet = do
   let e1 = Entry (Author "brian@gmail.com") [] (Updated 1) (Id 1234) (Content "hello world!")
       e2 = Entry (Author "you@gmail.com") [] (Updated 3) (Id 1235) (Content "another content")
-      e3 = Entry (Author "broh@gmail.com") [] (Updated 10) (Id 1236) (Content "broh")
+      e3 = Entry (Author "broh@gmail.com") [Author "asd"] (Updated 10) (Id 1236) (Content "broh")
   -- e3 = Author "another@gmail.com"
   -- e4 = Author "you@gmail.com"
   let entries = IxSet.insertList [e1, e2, e3] (IxSet.empty :: IxEntry)
   -- let entries1 = foldr IxSet.delete entries [e1, e3]
-  let res = entries @= [] @Author
+  let res = entries @= [Author "adf"]
   putStrLn "found:"
   print $ IxSet.toList res
   return ()

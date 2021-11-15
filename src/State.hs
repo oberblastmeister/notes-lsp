@@ -85,7 +85,7 @@ forkState st m = do
   env <- Server.getLspEnv
   stRef <- IORef.newIORef st
   runServer stRef env m
-  
+
 -- -- this code is very brittle
 -- requestHandler ::
 --   forall (m :: LSP.Method 'LSP.FromClient 'LSP.Request).
@@ -114,6 +114,7 @@ forkState st m = do
 --                       }
 --               Right x -> pure $ Right x
 --         State.runServer stRef env (k res)
+
 -- | Used to prefer the first ServerState when combine two ServerState
 -- | Useful when one server state is calculated concurrently, but the current ServerState
 -- | Is the one we have already
@@ -132,7 +133,7 @@ data ServerState = ServerState
     size :: !Int
   }
   deriving (Generic)
-  
+
 instance Show ServerState where
   show ServerState {pathToNote, nameToNote, noteGraph} =
     Text.Show.show pathToNote

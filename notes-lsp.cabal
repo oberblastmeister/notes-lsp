@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Config
+      Data.IdMap
       Data.Pos
       Data.Range
       Data.Rope.Utils
@@ -46,6 +47,8 @@ library
       Markdown.Tags
       MyPrelude
       Note
+      NoteData
+      NotePath
       Proto
       Reactor
       ReactorMsg

@@ -27,18 +27,12 @@ handler = requestHandler LSP.STextDocumentCompletion $ \req -> do
   let params = req ^. LSP.params
       cx = params ^. LSP.context
       pos = params ^. Proto.pos
-  -- uri = params ^. LSP.textDocument . LSP.uri . L.to LSP.toNormalizedUri
-  note@Note {ast, rope} <- getNote params
-  let pos = params ^. Proto.pos
-  -- pure undefined
-  pure $ LSP.InL mempty
-  -- pure $
-  --   LSP.InL $ case getCompletionAction pos cx ast rope of
-  --     CompleteLinks -> completeLinks
-  --     CompleteTags -> completeTags
-  --     CompleteNone -> mempty
-
--- pure $ LSP.InL mempty
+  Note {ast, rope} <- getNote params
+  pure $
+    LSP.InL $ case getCompletionAction pos cx ast rope of
+      CompleteLinks -> completeLinks
+      CompleteTags -> completeTags
+      CompleteNone -> mempty
 
 completeLinks :: LSP.List LSP.CompletionItem
 completeLinks =

@@ -1,25 +1,25 @@
 module Note where
 
--- import Commonmark (ParseError)
--- import Control.Monad.Except
--- import Data.Rope.UTF16 (Rope)
--- import qualified Data.Text as T
--- import Language.LSP.Types (NormalizedFilePath)
--- import qualified Language.LSP.Types as LSP
--- import LineIndex (LineIndex, new)
--- import Markdown.AST (AST)
--- import qualified Markdown.Parsing
--- import MyPrelude
--- import qualified System.FilePath as FilePath
+import Commonmark (ParseError)
+import Control.Monad.Except
+import Data.Rope.UTF16 (Rope)
+import qualified Data.Text as T
+import Language.LSP.Types (NormalizedFilePath)
+import qualified Language.LSP.Types as LSP
+import LineIndex (LineIndex, new)
+import Markdown.AST (AST)
+import qualified Markdown.Parsing
+import MyPrelude
+import qualified System.FilePath as FilePath
 
--- data Note = Note
---   { ast :: AST,
---     rope :: Rope,
---     name :: Text,
---     path :: NormalizedFilePath,
---     lineIndex :: LineIndex
---   }
---   deriving (Show, Generic)
+data Note = Note
+  { ast :: AST,
+    rope :: Rope,
+    name :: Text,
+    path :: NormalizedFilePath,
+    lineIndex :: LineIndex
+  }
+  deriving (Show, Eq, Generic)
 
 -- new :: MonadError ParseError m => LSP.NormalizedFilePath -> Text -> Rope -> m Note
 -- new nPath text rope = do
