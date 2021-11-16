@@ -31,6 +31,7 @@ dependencies:
   - vector
   - dlist
   - text
+  - unicode-transforms
   - bytestring
   - lsp
   - lsp-types

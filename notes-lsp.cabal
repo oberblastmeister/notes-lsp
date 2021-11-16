@@ -38,6 +38,7 @@ library
       Language.LSP.Types.Instances
       LineIndex
       LineIndexUtf16
+      LinkPath
       Logging
       Markdown.AST
       Markdown.Collect
@@ -49,7 +50,6 @@ library
       MyPrelude
       Note
       NoteData
-      NotePath
       Proto
       Reactor
       ReactorMsg
@@ -133,6 +133,7 @@ library
     , string-interpolate
     , text
     , transformers
+    , unicode-transforms
     , unliftio
     , unliftio-core
     , unordered-containers
@@ -220,6 +221,7 @@ executable notes-lsp
     , string-interpolate
     , text
     , transformers
+    , unicode-transforms
     , unliftio
     , unliftio-core
     , unordered-containers
@@ -326,6 +328,7 @@ test-suite notes-lsp-test
     , string-interpolate
     , text
     , transformers
+    , unicode-transforms
     , unliftio
     , unliftio-core
     , unordered-containers

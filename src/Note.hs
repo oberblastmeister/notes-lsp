@@ -11,12 +11,14 @@ import Markdown.AST (AST)
 import qualified Markdown.Parsing
 import MyPrelude
 import qualified System.FilePath as FilePath
+import LinkPath (LinkPath)
 
 data Note = Note
   { ast :: AST,
     rope :: Rope,
     name :: Text,
-    path :: NormalizedFilePath,
+    path :: LSP.NormalizedFilePath,
+    linkPath :: LinkPath,
     lineIndex :: LineIndex
   }
   deriving (Show, Eq, Generic)
