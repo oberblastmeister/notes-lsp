@@ -15,6 +15,7 @@ import qualified Data.Span as Span
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Handlers.Completion
+import qualified System.FilePath as Path
 import Handlers.Utils
 import qualified Language.LSP.Diagnostics as Diagnostics
 import qualified Language.LSP.Server as Server
@@ -24,7 +25,6 @@ import qualified Language.LSP.VFS as VFS
 import Logging
 import qualified Markdown.AST as AST
 import MyPrelude
-import qualified Path
 import qualified Proto
 import ReactorMsg
 import qualified Relude.Unsafe as Unsafe
@@ -75,7 +75,7 @@ initialized :: TQueue ServerState -> Handlers
 initialized stChan = notificationHandler LSP.SInitialized $ \_msg -> do
   debugM "handlers" "Processing Initialized notification"
 
-  root <- Server.getRootPath <&> (>>= Path.parseAbsDir)
+  root <- Server.getRootPath
   folders <- Server.getWorkspaceFolders
   debugM "handlers" "Initializing state"
   config <- Server.getConfig
@@ -245,7 +245,7 @@ workspaceExecuteCommand = requestHandler LSP.SWorkspaceExecuteCommand $ \req -> 
 -- testing = requestHandler (LSP.SCustomMethod "notes-lsp/testing") $ \req responder -> do
 --   responder $ Right $ Aeson.Object mempty
 
-initializeState :: (MonadUnliftIO m) => TQueue ServerState -> Maybe (Path Abs Dir) -> Maybe [LSP.WorkspaceFolder] -> m ()
+initializeState :: (MonadUnliftIO m) => TQueue ServerState -> Maybe FilePath -> Maybe [LSP.WorkspaceFolder] -> m ()
 initializeState rChan maybeRoot folders = do
   debugM "handlers" ("root " ++ show maybeRoot)
   debugM "handlers" ("folders " ++ show folders)
@@ -253,17 +253,17 @@ initializeState rChan maybeRoot folders = do
     Just root -> initializeState' rChan root
     Nothing -> pure ()
 
-initializeState' :: (MonadUnliftIO m) => TQueue ServerState -> Path Abs Dir -> m ()
+initializeState' :: (MonadUnliftIO m) => TQueue ServerState -> FilePath -> m ()
 initializeState' stChan root = do
   files <- Utils.listDirFilesIgnore root
-  let mdFiles = filter ((Just ".md" ==) . Path.fileExtension) files
+  let mdFiles = filter ((".md" ==) . Path.takeExtension) files
   st <-
     execStateT
       ( do
           noteIds <- forMaybeM mdFiles $ \mdFile -> do
-            contents <- liftIO $ TIO.readFile $ toFilePath mdFile
+            contents <- liftIO $ TIO.readFile mdFile
             let rope = Rope.fromText contents
-            let nPath = LSP.toNormalizedFilePath $ toFilePath mdFile
+            let nPath = LSP.toNormalizedFilePath mdFile
             runExceptT
               (State.newNote nPath rope)
               >>= \case

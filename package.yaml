@@ -44,8 +44,6 @@ dependencies:
   - pretty-simple
   - lens
   - generic-lens
-  - path
-  - path-io
   - filepath
   - directory
   - rope-utf16-splay
@@ -58,6 +56,7 @@ dependencies:
   - string-interpolate
   - yaml
   - data-default
+  - conduit
 
 default-extensions:
   - NoImplicitPrelude

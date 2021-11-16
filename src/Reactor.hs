@@ -26,16 +26,16 @@ import qualified Language.LSP.Types as Handlers
 import qualified Language.LSP.Types as LSP
 import Logging
 import MyPrelude
-import qualified Path
-import qualified Path.IO as PIO
 import ReactorMsg
 import State (ServerM, ServerState)
 import qualified State
 import qualified System.Exit as Exit
+import System.FilePath ((</>))
 import qualified System.Log.Logger as Logger
 import qualified Text.Show
 import UnliftIO (async)
 import qualified UnliftIO.Concurrent as Concurrent
+import qualified UnliftIO.Directory as Directory
 import qualified UnliftIO.Exception as Exception
 import UnliftIO.IORef as IORef
 import UnliftIO.STM (TQueue)
@@ -108,11 +108,11 @@ runServer serverDefinition = do
 
 setupLogger :: IO ()
 setupLogger = do
-  logDir <- PIO.getXdgDir PIO.XdgData $ Just [Path.reldir|notes-lsp|]
-  PIO.ensureDir logDir
-  let logFile = logDir </> [Path.relfile|notes-lsp.log|]
-  unlessM (PIO.doesFileExist logFile) $ TIO.writeFile (toFilePath logFile) ""
-  Server.setupLogger (Just $ toFilePath logFile) ["reactor", "handlers"] Logger.DEBUG
+  logDir <- Directory.getXdgDirectory Directory.XdgData "notes-lsp"
+  Directory.createDirectoryIfMissing True logDir
+  let logFile = logDir </> "notes-lsp.log"
+  unlessM (Directory.doesFileExist logFile) $ TIO.writeFile logFile ""
+  Server.setupLogger (Just logFile) ["reactor", "handlers"] Logger.DEBUG
 
 syncOptions :: LSP.TextDocumentSyncOptions
 syncOptions =

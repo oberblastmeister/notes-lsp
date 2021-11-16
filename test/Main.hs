@@ -8,23 +8,28 @@ import Data.IxSet.Typed (IxSet, (@<), (@=))
 import qualified Data.IxSet.Typed as IxSet
 import qualified LineIndex
 import qualified Markdown.Parsing
-import MyPrelude
+import MyPrelude hiding ((</>))
 import qualified Spec
 import Text.Pretty.Simple
 import qualified Prelude as P
+import qualified Conduit
+import Conduit ((.|))
+import qualified Data.Conduit.Combinators as C
+import Data.Conduit.Combinators.Extra
 
 main :: IO ()
 main = do
-  runIndexSet
-  -- Spec.main
+  -- runListDirRec
+  -- runIndexSet
+  Spec.main
   -- parseTree
   -- runGroupBy
-  return ()
+  -- return ()
 
 runGroupBy :: IO ()
 runGroupBy = do
   print $ LineIndex.new "asd😀fadf\nasdfasdf\n😀a😋sdfa"
-
+  
 parseTree :: IO ()
 parseTree = do
   let s =

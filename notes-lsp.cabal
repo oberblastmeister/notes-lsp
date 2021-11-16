@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:
       Config
+      Data.Conduit.Combinators.Extra
       Data.IdMap
       Data.Pos
       Data.Range
@@ -106,6 +107,7 @@ library
     , commonmark
     , commonmark-extensions
     , commonmark-pandoc
+    , conduit
     , containers
     , data-default
     , directory
@@ -124,8 +126,6 @@ library
     , mtl
     , pandoc-types
     , parsec
-    , path
-    , path-io
     , pretty-simple
     , relude
     , rope-utf16-splay
@@ -193,6 +193,7 @@ executable notes-lsp
     , commonmark
     , commonmark-extensions
     , commonmark-pandoc
+    , conduit
     , containers
     , data-default
     , directory
@@ -212,8 +213,6 @@ executable notes-lsp
     , notes-lsp
     , pandoc-types
     , parsec
-    , path
-    , path-io
     , pretty-simple
     , relude
     , rope-utf16-splay
@@ -297,6 +296,7 @@ test-suite notes-lsp-test
     , commonmark
     , commonmark-extensions
     , commonmark-pandoc
+    , conduit
     , containers
     , data-default
     , directory
@@ -319,8 +319,6 @@ test-suite notes-lsp-test
     , notes-lsp
     , pandoc-types
     , parsec
-    , path
-    , path-io
     , pretty-simple
     , relude
     , rope-utf16-splay

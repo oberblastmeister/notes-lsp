@@ -9,14 +9,18 @@ module Utils
     async',
     fromLeft',
     fromRight',
-    fromRightShow'
+    fromRightShow',
   )
 where
 
+import Conduit (ConduitT, MonadResource, awaitForever, runConduit, runResourceT, yield, (.|))
+import qualified Conduit
+import qualified Data.Conduit.Combinators as C
 import MyPrelude
-import qualified Path.IO as PIO
+import System.FilePath ((</>))
 import UnliftIO (Async, async)
 import qualified UnliftIO.Concurrent as Concurrent
+import qualified UnliftIO.Directory as Directory
 import qualified UnliftIO.Exception as Exception
 
 scanl'' :: (b -> a -> b) -> b -> [a] -> [b]
@@ -36,14 +40,23 @@ forMaybe = flip mapMaybe
 forMaybeM :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
 forMaybeM = flip mapMaybeM
 
-isHidden :: Path b t -> Bool
-isHidden = isPrefixOf "." . toFilePath
+isHidden :: FilePath -> Bool
+isHidden = isPrefixOf "."
 
-listDirFilesIgnore :: MonadIO m => Path b Dir -> m [Path Abs File]
-listDirFilesIgnore =
-  PIO.walkDirAccum
-    (Just (\_dir subdirs _files -> filter isHidden subdirs & PIO.WalkExclude & pure))
-    (\_dir _subdirs files -> filter (not . isHidden) files & pure)
+listDirFilesIgnore :: (MonadUnliftIO m) => FilePath -> m [FilePath]
+listDirFilesIgnore path = runResourceT $ runConduit $ listDirRec path .| C.sinkList
+
+listDirRec :: (MonadResource m) => FilePath -> ConduitT i FilePath m ()
+listDirRec path =
+  Conduit.sourceDirectory path
+    .| C.map (path </>)
+    .| awaitForever
+      ( \entry -> do
+          isDir <- Directory.doesDirectoryExist entry
+          if isDir
+            then listDirRec entry
+            else yield entry
+      )
 
 fromJustMsg :: (MonadIO m, HasCallStack) => String -> Maybe a -> m a
 fromJustMsg msg = \case
